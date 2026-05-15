@@ -16,7 +16,7 @@ DevTools is a powerful, local-first web application designed to simplify the dai
 
 ## 🚀 Desktop Application
 
-DevTools can be built as a standalone desktop application for Windows, macOS, and Linux using Electron.
+DevTools can be built as a standalone desktop application for Windows and Linux using Electron.
 
 ### Building for your OS
 
@@ -34,7 +34,7 @@ DevTools can be built as a standalone desktop application for Windows, macOS, an
 3. **Build executable:**
    ```bash
    # Build for current OS
-   npm run build:desktop
+   npm run electron:build
    ```
 
 ### Download Executables
