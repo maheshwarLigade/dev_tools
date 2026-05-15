@@ -67,12 +67,8 @@ export default function YamlConverter() {
             value={input} 
             onChange={(v) => convert(v, direction)} 
             language={direction === 'yaml2json' ? 'yaml' : 'json'} 
+            error={error}
           />
-          {error && (
-            <div className="mt-2 p-3 bg-red-500/10 border border-red-500/50 rounded-md text-red-500 text-xs font-mono">
-              Error: {error}
-            </div>
-          )}
         </div>
 
         <div className="flex-1 flex flex-col gap-2 min-h-0">

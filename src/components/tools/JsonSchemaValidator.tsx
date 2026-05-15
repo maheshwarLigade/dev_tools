@@ -12,6 +12,32 @@ export default function JsonSchemaValidator() {
   const [validationResult, setValidationResult] = useState<{ valid: boolean; errors?: any[] | null } | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
 
+  const [jsonParseError, setJsonParseError] = useState<string | null>(null);
+  const [schemaParseError, setSchemaParseError] = useState<string | null>(null);
+
+  const validateJson = (val: string, setter: (err: string | null) => void) => {
+    if (!val.trim()) {
+      setter(null);
+      return;
+    }
+    try {
+      JSON.parse(val);
+      setter(null);
+    } catch (e) {
+      setter(e instanceof Error ? e.message : 'Invalid JSON');
+    }
+  };
+
+  const handleJsonChange = (val: string) => {
+    setJsonInput(val);
+    validateJson(val, setJsonParseError);
+  };
+
+  const handleSchemaChange = (val: string) => {
+    setSchemaInput(val);
+    validateJson(val, setSchemaParseError);
+  };
+
   const validate = useCallback(() => {
     setParseError(null);
     setValidationResult(null);
@@ -36,7 +62,7 @@ export default function JsonSchemaValidator() {
     <ToolLayout
       title="JSON Schema Validator"
       description="Validate JSON data against a JSON Schema to ensure data integrity."
-      onClear={() => { setJsonInput(''); setSchemaInput(''); setValidationResult(null); setParseError(null); }}
+      onClear={() => { setJsonInput(''); setSchemaInput(''); setValidationResult(null); setParseError(null); setJsonParseError(null); setSchemaParseError(null); }}
       actions={
         <button 
           onClick={validate}
@@ -52,18 +78,20 @@ export default function JsonSchemaValidator() {
             <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">JSON Data</label>
             <CodeEditor
               value={jsonInput}
-              onChange={setJsonInput}
+              onChange={handleJsonChange}
               language="json"
               placeholder="Paste JSON data here..."
+              error={jsonParseError}
             />
           </div>
           <div className="flex-1 flex flex-col gap-2 min-h-0">
             <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">JSON Schema</label>
             <CodeEditor
               value={schemaInput}
-              onChange={setSchemaInput}
+              onChange={handleSchemaChange}
               language="json"
               placeholder="Paste JSON Schema here..."
+              error={schemaParseError}
             />
           </div>
         </div>

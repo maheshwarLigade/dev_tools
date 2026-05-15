@@ -9,6 +9,24 @@ export default function JsonFormatter() {
   const [indent, setIndent] = useState(2);
   const [error, setError] = useState<string | null>(null);
 
+  const validateJson = (val: string) => {
+    if (!val.trim()) {
+      setError(null);
+      return;
+    }
+    try {
+      JSON.parse(val);
+      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleInputChange = (val: string) => {
+    setInput(val);
+    validateJson(val);
+  };
+
   const formatJson = (minify = false) => {
     if (!input.trim()) return;
     try {
@@ -66,15 +84,11 @@ export default function JsonFormatter() {
           <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">Input</label>
           <CodeEditor 
             value={input} 
-            onChange={setInput} 
+            onChange={handleInputChange} 
             language="json" 
             placeholder="Paste your JSON here..."
+            error={error}
           />
-          {error && (
-            <div className="mt-2 p-3 bg-red-500/10 border border-red-500/50 rounded text-red-500 text-[11px] font-mono whitespace-pre-wrap">
-              {error}
-            </div>
-          )}
         </div>
 
         <div className="flex flex-col gap-2 h-full min-h-0">

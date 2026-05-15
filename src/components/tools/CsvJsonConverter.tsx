@@ -8,22 +8,33 @@ export default function CsvJsonConverter() {
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
   const [direction, setDirection] = useState<'csv2json' | 'json2csv'>('csv2json');
+  const [error, setError] = useState<string | null>(null);
 
   const convert = (val: string, dir: 'csv2json' | 'json2csv') => {
     setInput(val);
-    if (!val.trim()) { setOutput(''); return; }
+    if (!val.trim()) { 
+      setOutput(''); 
+      setError(null);
+      return; 
+    }
 
     try {
       if (dir === 'csv2json') {
         const results = Papa.parse(val, { header: true, skipEmptyLines: true });
+        if (results.errors.length > 0) {
+           setError(results.errors[0].message);
+        } else {
+           setError(null);
+        }
         setOutput(JSON.stringify(results.data, null, 2));
       } else {
         const obj = JSON.parse(val);
         const csv = Papa.unparse(obj);
         setOutput(csv);
+        setError(null);
       }
     } catch (err) {
-      setOutput(`Error: ${(err as Error).message}`);
+      setError((err as Error).message);
     }
   };
 
@@ -36,6 +47,7 @@ export default function CsvJsonConverter() {
           onClick={() => {
             const next = direction === 'csv2json' ? 'json2csv' : 'csv2json';
             setDirection(next);
+            setError(null);
             if (output && !output.startsWith('Error:')) {
               const oldOut = output; const oldIn = input;
               setInput(oldOut); setOutput(oldIn);
@@ -51,7 +63,12 @@ export default function CsvJsonConverter() {
       <div className="flex flex-col lg:flex-row gap-6 h-full min-h-0">
         <div className="flex-1 flex flex-col gap-2 min-h-0">
           <label className="text-xs font-semibold text-slate-500 uppercase">{direction === 'csv2json' ? 'CSV Input' : 'JSON Input'}</label>
-          <CodeEditor value={input} onChange={(v) => convert(v, direction)} language={direction === 'csv2json' ? 'text' : 'json'} />
+          <CodeEditor 
+            value={input} 
+            onChange={(v) => convert(v, direction)} 
+            language={direction === 'csv2json' ? 'text' : 'json'} 
+            error={error}
+          />
         </div>
         <div className="flex-1 flex flex-col gap-2 min-h-0">
           <div className="flex items-center justify-between">

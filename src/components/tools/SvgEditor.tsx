@@ -1,7 +1,13 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import ToolLayout from '../ui/ToolLayout';
 import CodeEditor from '../ui/Editor';
-import { Eye, Code, Download, Copy, ZoomIn, ZoomOut, RotateCcw, Hand } from 'lucide-react';
+import { Eye, Code, Download, Copy, ZoomIn, ZoomOut, RotateCcw, Hand, Undo2, Redo2 } from 'lucide-react';
+
+interface HistoryState {
+  input: string;
+  scale: number;
+  position: { x: number; y: number };
+}
 
 export default function SvgEditor() {
   const [input, setInput] = useState('<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">\n  <circle cx="12" cy="12" r="10" />\n  <path d="M12 8v4" />\n  <path d="M12 16h.01" />\n</svg>');
@@ -11,7 +17,97 @@ export default function SvgEditor() {
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef({ x: 0, y: 0 });
 
+  // History state
+  const [past, setPast] = useState<HistoryState[]>([]);
+  const [future, setFuture] = useState<HistoryState[]>([]);
+  const isInternalUpdate = useRef(false);
+  const lastPushedRef = useRef<HistoryState | null>(null);
+
+  const saveState = useCallback((state: HistoryState) => {
+    if (isInternalUpdate.current) return;
+    
+    // Check if state is different enough to save
+    const last = lastPushedRef.current;
+    if (last && 
+        last.input === state.input && 
+        last.scale === state.scale && 
+        last.position.x === state.position.x && 
+        last.position.y === state.position.y) {
+      return;
+    }
+
+    setPast(prev => [...prev.slice(-49), { ...state }]); // Keep last 50 states
+    setFuture([]);
+    lastPushedRef.current = state;
+  }, []);
+
+  const undo = useCallback(() => {
+    if (past.length === 0) return;
+    
+    const currentState = { input, scale, position };
+    const previousState = past[past.length - 1];
+    
+    isInternalUpdate.current = true;
+    setFuture(prev => [currentState, ...prev]);
+    setPast(prev => prev.slice(0, -1));
+    
+    setInput(previousState.input);
+    setScale(previousState.scale);
+    setPosition(previousState.position);
+    lastPushedRef.current = previousState;
+    
+    setTimeout(() => { isInternalUpdate.current = false; }, 0);
+  }, [past, input, scale, position]);
+
+  const redo = useCallback(() => {
+    if (future.length === 0) return;
+    
+    const currentState = { input, scale, position };
+    const nextState = future[0];
+    
+    isInternalUpdate.current = true;
+    setPast(prev => [...prev, currentState]);
+    setFuture(prev => prev.slice(1));
+    
+    setInput(nextState.input);
+    setScale(nextState.scale);
+    setPosition(nextState.position);
+    lastPushedRef.current = nextState;
+    
+    setTimeout(() => { isInternalUpdate.current = false; }, 0);
+  }, [future, input, scale, position]);
+
+  // Debounced input change for history
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      saveState({ input, scale, position });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [input, saveState]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        if (e.shiftKey) {
+          e.preventDefault();
+          redo();
+        } else {
+          e.preventDefault();
+          undo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
+
   const handleMouseDown = (e: React.MouseEvent) => {
+    saveState({ input, scale, position }); // Save before starting drag
     setIsDragging(true);
     dragStart.current = { x: e.clientX - position.x, y: e.clientY - position.y };
   };
@@ -31,12 +127,14 @@ export default function SvgEditor() {
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
       e.preventDefault();
+      saveState({ input, scale, position }); // Save before zoom
       const delta = e.deltaY > 0 ? 0.9 : 1.1;
       setScale(prev => Math.min(Math.max(0.1, prev * delta), 10));
     }
   };
 
   const resetViewport = () => {
+    saveState({ input, scale, position }); // Save before reset
     setScale(1);
     setPosition({ x: 0, y: 0 });
   };
@@ -69,6 +167,23 @@ export default function SvgEditor() {
               <span className="text-[10px] font-bold uppercase tracking-widest">SVG Code</span>
             </div>
             <div className="flex items-center gap-2">
+              <button 
+                onClick={undo}
+                disabled={past.length === 0}
+                className={`p-1.5 rounded transition-colors ${past.length === 0 ? 'text-text-secondary/30 bg-transparent cursor-not-allowed' : 'hover:bg-white/5 text-text-secondary'}`}
+                title="Undo (Ctrl+Z)"
+              >
+                <Undo2 size={14} />
+              </button>
+              <button 
+                onClick={redo}
+                disabled={future.length === 0}
+                className={`p-1.5 rounded transition-colors ${future.length === 0 ? 'text-text-secondary/30 bg-transparent cursor-not-allowed' : 'hover:bg-white/5 text-text-secondary'}`}
+                title="Redo (Ctrl+Y)"
+              >
+                <Redo2 size={14} />
+              </button>
+              <div className="h-4 w-[1px] bg-border-main mx-1" />
               <button 
                 onClick={copyToClipboard}
                 className="p-1.5 rounded hover:bg-white/5 text-text-secondary transition-colors"

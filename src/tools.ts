@@ -181,6 +181,13 @@ export const TOOLS: ToolDefinition[] = [
     icon: Variable
   },
   {
+    id: 'json-to-go',
+    name: 'JSON to Go Struct',
+    description: 'Convert JSON to idiomatic Go structs with JSON tags',
+    category: 'Converters',
+    icon: Code2
+  },
+  {
     id: 'json-to-ts',
     name: 'JSON to TypeScript',
     description: 'Convert JSON to nested TypeScript interfaces or types',
