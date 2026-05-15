@@ -1,0 +1,6 @@
+{
+  "name": "DevTools - Desktop Utility Hub",
+  "description": "A comprehensive suite of developer utilities including formatters, converters, generators, and debugging tools.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

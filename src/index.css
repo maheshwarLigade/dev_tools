@@ -1,0 +1,58 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-brand: #007acc;
+  --color-brand-light: #3794ff;
+  --color-brand-dark: #005a9e;
+  
+  --color-bg-app: #1e1e1e;
+  --color-bg-sidebar: #252526;
+  --color-bg-header: #2d2d2d;
+  --color-bg-editor: #1e1e1e;
+  --color-bg-panel: #2d2d2d;
+  
+  --color-border-main: #333333;
+  --color-border-subtle: #3e3e3e;
+  
+  --color-text-main: #d4d4d4;
+  --color-text-secondary: #858585;
+}
+
+@layer base {
+  body {
+    @apply bg-bg-app text-text-main overflow-hidden;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-neutral-700/50 hover:bg-neutral-600;
+}
+
+.code-editor {
+  font-family: var(--font-mono) !important;
+  font-size: 13px !important;
+  min-height: 100%;
+}
+
+.tool-card {
+  @apply bg-bg-sidebar border border-border-main p-4 rounded transition-all duration-200 hover:border-brand/50;
+}
+
+pre {
+  @apply font-mono text-sm leading-relaxed;
+}
+
