@@ -181,6 +181,13 @@ export const TOOLS: ToolDefinition[] = [
     icon: Variable
   },
   {
+    id: 'json-to-ts',
+    name: 'JSON to TypeScript',
+    description: 'Convert JSON to nested TypeScript interfaces or types',
+    category: 'Converters',
+    icon: Code2
+  },
+  {
     id: 'json-schema-validator',
     name: 'JSON Schema Validator',
     description: 'Validate JSON data against a JSON Schema (Draft 7/2019-09)',

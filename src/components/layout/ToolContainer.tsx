@@ -33,6 +33,7 @@ const SvgToCss = lazy(() => import('../tools/SvgToCss'));
 const SvgEditor = lazy(() => import('../tools/SvgEditor'));
 const CurlToCode = lazy(() => import('../tools/CurlToCode'));
 const JsonToCode = lazy(() => import('../tools/JsonToCode'));
+const JsonToTypeScript = lazy(() => import('../tools/JsonToTypeScript'));
 const HexAsciiConverter = lazy(() => import('../tools/HexAsciiConverter'));
 const JsonSchemaValidator = lazy(() => import('../tools/JsonSchemaValidator'));
 const HtmlPreview = lazy(() => import('../tools/HtmlPreview'));
@@ -87,6 +88,7 @@ export default function ToolContainer({ tool, onSelectTool, searchQuery }: ToolC
       case 'svg-editor': return <SvgEditor />;
       case 'curl-code': return <CurlToCode />;
       case 'json-code': return <JsonToCode />;
+      case 'json-to-ts': return <JsonToTypeScript />;
       case 'hex-ascii': return <HexAsciiConverter />;
       case 'html-entities': return <HtmlEntitiesTool />;
       case 'escape-unescape': return <EscapeUnescapeTool />;
