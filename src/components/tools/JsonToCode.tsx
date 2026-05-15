@@ -6,12 +6,28 @@ export default function JsonToCode() {
   const [input, setInput] = useState('{\n  "id": 1,\n  "name": "John Doe",\n  "tags": ["admin", "staff"],\n  "profile": {\n    "bio": "Developer",\n    "age": 30\n  }\n}');
   const [output, setOutput] = useState('');
   const [lang, setLang] = useState<'typescript' | 'go' | 'java' | 'json-schema'>('typescript');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleInputChange = (val: string) => {
+    setInput(val);
+    if (!val.trim()) {
+      setError(null);
+      return;
+    }
+    try {
+      JSON.parse(val);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Invalid JSON');
+    }
+  };
 
   const generate = () => {
     if (!input.trim()) return;
 
     try {
       const obj = JSON.parse(input);
+      setError(null);
       
       if (lang === 'typescript') {
         const toTs = (val: any, name: string = 'Root'): string => {
@@ -100,9 +116,10 @@ export default function JsonToCode() {
           <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">JSON Input</label>
           <CodeEditor
             value={input}
-            onChange={setInput}
+            onChange={handleInputChange}
             language="json"
             placeholder="Paste JSON here..."
+            error={error}
           />
         </div>
         <div className="flex flex-col gap-2 h-full min-h-0">

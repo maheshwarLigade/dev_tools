@@ -3,7 +3,7 @@ import ToolLayout, { CopyButton } from '../ui/ToolLayout';
 import { Type, Hash, AlignLeft, LetterText } from 'lucide-react';
 
 export default function StringInspector() {
-  const [input, setInput] = useState('DevForge: The ultimate developer utility belt.\n\nQuick brown fox jumps over the lazy dog.');
+  const [input, setInput] = useState('DevTools: The ultimate developer utility belt.\n\nQuick brown fox jumps over the lazy dog.');
 
   const stats = useMemo(() => {
     const trimmed = input.trim();

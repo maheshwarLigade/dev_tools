@@ -17,7 +17,7 @@ export default function Dashboard({ onSelectTool, searchQuery }: DashboardProps)
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-12 text-left border-b border-border-main pb-8">
         <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">
-          Welcome to <span className="text-brand">DevForge</span>
+          Welcome to <span className="text-brand">DevTools</span>
         </h1>
         <p className="text-text-secondary text-base max-w-2xl">
           A comprehensive suite of developer utilities, locally powered and privacy-first.

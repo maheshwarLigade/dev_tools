@@ -7,6 +7,21 @@ export default function JsonToGo() {
   const [input, setInput] = useState('{\n  "id": 1,\n  "name": "Service Config",\n  "version": "1.0",\n  "active": true,\n  "metadata": {\n    "created_at": "2024-01-01T12:00:00Z",\n    "tags": ["prod", "api"]\n  },\n  "endpoints": [\n    {\n      "path": "/health",\n      "method": "GET",\n      "timeout": 30\n    }\n  ]\n}');
   const [output, setOutput] = useState('');
   const [rootName, setRootName] = useState('Configuration');
+  const [error, setError] = useState<string | null>(null);
+
+  const handleInputChange = (val: string) => {
+    setInput(val);
+    if (!val.trim()) {
+      setError(null);
+      return;
+    }
+    try {
+      JSON.parse(val);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Invalid JSON');
+    }
+  };
 
   const capitalize = (s: string) => {
     return s.split(/[^a-zA-Z0-9]/).map(part => part.charAt(0).toUpperCase() + part.slice(1)).join('');
@@ -17,6 +32,7 @@ export default function JsonToGo() {
 
     try {
       const obj = JSON.parse(input);
+      setError(null);
       const structs: string[] = [];
       const seenNames = new Set<string>();
 
@@ -107,9 +123,10 @@ export default function JsonToGo() {
           <div className="flex-1 min-h-0 rounded-2xl border border-border-main overflow-hidden bg-bg-editor">
             <CodeEditor
               value={input}
-              onChange={setInput}
+              onChange={handleInputChange}
               language="json"
               placeholder="Paste JSON here..."
+              error={error}
             />
           </div>
         </div>

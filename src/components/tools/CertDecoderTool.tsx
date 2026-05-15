@@ -23,8 +23,8 @@ export default function CertDecoderTool() {
       // Since complex X509 parsing requires heavy libraries, we'll simulate the output
       // explaining what the tool would show if using a full parser.
       setOutput({
-        Subject: "CN=example.com, O=DevForge Utility, L=Internet",
-        Issuer: "CN=DevForge Authority, O=DevForge Utility",
+        Subject: "CN=example.com, O=DevTools Utility, L=Internet",
+        Issuer: "CN=DevTools Authority, O=DevTools Utility",
         ValidFrom: "2024-01-01 00:00:00 UTC",
         ValidUntil: "2025-01-01 00:00:00 UTC",
         SerialNumber: "01:23:45:67:89:AB:CD:EF",

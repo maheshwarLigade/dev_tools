@@ -1,19 +1,35 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { 
   Search, 
   Terminal, 
   Menu,
   ChevronRight,
-  RefreshCw
+  RefreshCw,
+  Command
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TOOLS, CATEGORIES } from './tools';
 import ToolContainer from './components/layout/ToolContainer';
+import CommandPalette from './components/layout/CommandPalette';
 
 export default function App() {
   const [activeToolId, setActiveToolId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
+
+  // Keyboard shortcut for command palette
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsCommandPaletteOpen(prev => !prev);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const filteredTools = useMemo(() => {
     if (!searchQuery) return TOOLS;
@@ -164,6 +180,10 @@ export default function App() {
             <div className="flex rotate-45 border-2 border-white/40 p-0.5 rounded-sm"></div>
             <span>Ready</span>
           </div>
+          <div className="flex items-center gap-1 opacity-90 cursor-pointer hover:underline" onClick={() => setIsCommandPaletteOpen(true)}>
+            <Command size={10} />
+            <span>Search (Ctrl+K)</span>
+          </div>
           <div className="flex items-center gap-1 opacity-90">
             <RefreshCw size={10} />
             <span>DevTools Engine v1.0.0</span>
@@ -177,6 +197,12 @@ export default function App() {
           </div>
         </div>
       </footer>
+
+      <CommandPalette 
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        onSelect={setActiveToolId}
+      />
     </div>
   );
 }

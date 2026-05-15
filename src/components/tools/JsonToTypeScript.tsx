@@ -8,12 +8,28 @@ export default function JsonToTypeScript() {
   const [output, setOutput] = useState('');
   const [rootName, setRootName] = useState('RootObject');
   const [useInterface, setUseInterface] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleInputChange = (val: string) => {
+    setInput(val);
+    if (!val.trim()) {
+      setError(null);
+      return;
+    }
+    try {
+      JSON.parse(val);
+      setError(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Invalid JSON');
+    }
+  };
 
   const generate = () => {
     if (!input.trim()) return;
 
     try {
       const obj = JSON.parse(input);
+      setError(null);
       const interfaces: string[] = [];
       const seenInterfaces = new Map<string, string>();
 
@@ -140,9 +156,10 @@ export default function JsonToTypeScript() {
           <div className="flex-1 min-h-0 rounded-2xl border border-border-main overflow-hidden bg-bg-editor shadow-inner">
             <CodeEditor
               value={input}
-              onChange={setInput}
+              onChange={handleInputChange}
               language="json"
               placeholder="Paste your JSON here..."
+              error={error}
             />
           </div>
         </div>

@@ -6,6 +6,27 @@ import { html as beautifyHtml } from 'js-beautify';
 export default function XmlFormatter() {
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const validateXml = (val: string) => {
+    if (!val.trim()) {
+      setError(null);
+      return;
+    }
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(val, 'text/xml');
+    const parserError = doc.getElementsByTagName('parsererror');
+    if (parserError.length > 0) {
+      setError(parserError[0].textContent);
+    } else {
+      setError(null);
+    }
+  };
+
+  const handleInputChange = (val: string) => {
+    setInput(val);
+    validateXml(val);
+  };
 
   const formatXml = (minify = false) => {
     if (!input.trim()) return;
@@ -24,8 +45,9 @@ export default function XmlFormatter() {
         });
         setOutput(formatted);
       }
+      setError(null);
     } catch (err) {
-      setOutput(`Error: ${(err as Error).message}`);
+      setError((err as Error).message);
     }
   };
 
@@ -33,7 +55,7 @@ export default function XmlFormatter() {
     <ToolLayout 
       title="XML Formatter" 
       description="Beautify or minify XML and HTML documents."
-      onClear={() => { setInput(''); setOutput(''); }}
+      onClear={() => { setInput(''); setOutput(''); setError(null); }}
       actions={
         <div className="flex gap-2">
           <button 
@@ -57,9 +79,10 @@ export default function XmlFormatter() {
           <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">Input</label>
           <CodeEditor 
             value={input} 
-            onChange={setInput} 
+            onChange={handleInputChange} 
             language="markup" 
             placeholder="Paste XML or HTML here..." 
+            error={error}
           />
         </div>
         <div className="flex flex-col gap-2 h-full min-h-0">

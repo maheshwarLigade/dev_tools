@@ -40,17 +40,15 @@ export default function JwtDebugger() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full min-h-0">
         <div className="flex flex-col gap-2 min-h-0">
           <label className="text-xs font-semibold text-slate-500 uppercase">Encoded Token</label>
-          <textarea 
-            className="flex-1 bg-slate-900 border border-slate-800 rounded-lg p-4 font-mono text-sm break-all outline-none focus:border-blue-500/50 transition-colors"
-            value={token}
-            onChange={(e) => decode(e.target.value)}
-            placeholder="Paste your JWT here..."
-          />
-          {error && (
-            <div className="mt-2 p-3 bg-red-500/10 border border-red-500/50 rounded-md text-red-500 text-xs font-mono">
-              Invalid Token: {error}
-            </div>
-          )}
+          <div className="flex-1 min-h-[200px]">
+            <CodeEditor
+              value={token}
+              onChange={decode}
+              language="text"
+              placeholder="Paste your JWT here..."
+              error={error}
+            />
+          </div>
         </div>
 
         <div className="flex flex-col gap-6 min-h-0 overflow-auto">

@@ -17,6 +17,37 @@ export default function GenericBeautifier({ title, description, language, mode }
   const [indentSize, setIndentSize] = useState(2);
   const [error, setError] = useState<string | null>(null);
 
+  const validateInput = useCallback((val: string) => {
+    if (!val.trim()) {
+      setError(null);
+      return;
+    }
+    try {
+      if (mode === 'html') {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(val, 'text/xml');
+        if (doc.getElementsByTagName('parsererror').length > 0) {
+          // XML/HTML parsing errors are often noisy, so we'll be careful
+          // js-beautify is very forgiving, so real-time validation might be too strict
+          // But it helps for obvious tag mismatches
+        }
+      } else if (language === 'json') {
+        JSON.parse(val);
+      }
+      setError(null);
+    } catch (err) {
+      // Only set error for strict formats like JSON
+      if (language === 'json') {
+        setError(err instanceof Error ? err.message : 'Invalid JSON');
+      }
+    }
+  }, [mode, language]);
+
+  const handleInputChange = (val: string) => {
+    setInput(val);
+    validateInput(val);
+  };
+
   const handleFormat = useCallback(() => {
     if (!input.trim()) return;
     setError(null);
@@ -125,14 +156,15 @@ export default function GenericBeautifier({ title, description, language, mode }
           <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">Input</label>
           <CodeEditor
             value={input}
-            onChange={setInput}
+            onChange={handleInputChange}
             language={language}
             placeholder={`Paste your ${language.toUpperCase()} here...`}
+            error={error}
           />
         </div>
         <div className="flex flex-col gap-2 h-full min-h-0">
           <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">
-            Output {error && <span className="text-red-500 ml-2 normal-case font-medium">({error})</span>}
+            Output
           </label>
           <CodeEditor
             value={output}

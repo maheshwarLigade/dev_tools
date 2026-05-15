@@ -7,6 +7,7 @@ export default function SqlFormatter() {
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
   const [dialect, setDialect] = useState('sql');
+  const [error, setError] = useState<string | null>(null);
 
   const formatSql = () => {
     if (!input.trim()) return;
@@ -16,8 +17,24 @@ export default function SqlFormatter() {
         // Remove invalid uppercase property
       });
       setOutput(formatted);
+      setError(null);
     } catch (err) {
-      setOutput(`Error: ${(err as Error).message}`);
+      setError((err as Error).message);
+    }
+  };
+
+  const handleInputChange = (val: string) => {
+    setInput(val);
+    if (!val.trim()) {
+      setError(null);
+      return;
+    }
+    // Basic catch for obvious errors if needed, though sql-formatter is forgiving
+    try {
+       format(val, { language: dialect as any });
+       setError(null);
+    } catch (err) {
+       setError((err as Error).message);
     }
   };
 
@@ -25,7 +42,7 @@ export default function SqlFormatter() {
     <ToolLayout 
       title="SQL Formatter" 
       description="Beautify and format your SQL queries for better readability."
-      onClear={() => { setInput(''); setOutput(''); }}
+      onClear={() => { setInput(''); setOutput(''); setError(null); }}
       actions={
         <div className="flex items-center gap-2">
           <select 
@@ -53,9 +70,10 @@ export default function SqlFormatter() {
           <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">SQL Query</label>
           <CodeEditor 
             value={input} 
-            onChange={setInput} 
+            onChange={handleInputChange} 
             language="sql" 
             placeholder="SELECT * FROM users WHERE active = true..."
+            error={error}
           />
         </div>
 
