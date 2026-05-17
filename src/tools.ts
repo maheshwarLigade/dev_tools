@@ -357,6 +357,13 @@ export const TOOLS: ToolDefinition[] = [
 
   // Network Tools
   {
+    id: 'rest-manager',
+    name: 'REST API Manager',
+    description: 'Test and debug REST APIs with custom headers, bodies, and cURL support',
+    category: 'Network Tools',
+    icon: Globe
+  },
+  {
     id: 'ip-calculator',
     name: 'IP Calculator',
     description: 'Subnetting and CIDR conversion calculator',

@@ -43,6 +43,7 @@ const CronParser = lazy(() => import('../tools/CronParser'));
 const ColorConverter = lazy(() => import('../tools/ColorConverter'));
 const MockDataGenerator = lazy(() => import('../tools/MockDataGenerator'));
 const ScssFormatter = lazy(() => import('../tools/ScssFormatter'));
+const RestApiManager = lazy(() => import('../tools/RestApiManager'));
 
 const XmlFormatter = lazy(() => import('../tools/XmlFormatter'));
 const CsvJsonConverter = lazy(() => import('../tools/CsvJsonConverter'));
@@ -100,6 +101,7 @@ export default function ToolContainer({ tool, onSelectTool, searchQuery }: ToolC
       case 'lorem-gen': return <LoremGenerator />;
       case 'unix-time': return <UnixTimeConverter />;
       case 'ip-calculator': return <IpCalculator />;
+      case 'rest-manager': return <RestApiManager />;
       case 'html-format': return <GenericBeautifier title="HTML Formatter" description="Beautify or minify HTML code" language="html" mode="html" />;
       case 'js-format': return <GenericBeautifier title="JS Formatter" description="Beautify or minify JavaScript/TypeScript code" language="javascript" mode="js" />;
       case 'css-format': return <GenericBeautifier title="CSS Formatter" description="Beautify or minify CSS code" language="css" mode="css" />;

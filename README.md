@@ -22,8 +22,8 @@ DevTools can be built as a standalone desktop application for Windows and Linux 
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/devtools.git
-   cd devtools
+   git clone https://github.com/maheshwarLigade/dev_tools.git
+   cd dev_tools
    ```
 
 2. **Install dependencies:**
@@ -38,7 +38,12 @@ DevTools can be built as a standalone desktop application for Windows and Linux 
    ```
 
 ### Download Executables
-You can find the latest pre-built binaries for all platforms in our [GitHub Releases](https://github.com/your-username/devtools/releases).
+You can download the latest pre-built binaries for Windows and Ubuntu from our [GitHub Releases](https://github.com/maheshwarLigade/dev_tools/releases) page.
+
+| Platform | Download Link |
+| :--- | :--- |
+| **Windows** | [Download .exe](https://github.com/maheshwarLigade/dev_tools/releases/latest) |
+| **Ubuntu / Linux** | [Download .deb / .AppImage](https://github.com/maheshwarLigade/dev_tools/releases/latest) |
 
 ## 🛠️ Tech Stack
 
