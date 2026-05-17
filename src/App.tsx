@@ -5,7 +5,8 @@ import {
   Menu,
   ChevronRight,
   RefreshCw,
-  Command
+  Command,
+  Github
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { TOOLS, CATEGORIES } from './tools';
@@ -188,6 +189,16 @@ export default function App() {
             <RefreshCw size={10} />
             <span>DevTools Engine v1.0.0</span>
           </div>
+          <div className="h-3 w-[1px] bg-white/20 mx-1"></div>
+          <a 
+            href="https://github.com/maheshwarLigade/dev_tools" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 opacity-90 hover:opacity-100 hover:underline transition-all"
+          >
+            <Github size={10} />
+            <span>v1.0.0 Stable</span>
+          </a>
         </div>
         <div className="flex items-center gap-4 opacity-90">
           <span>UTF-8</span>

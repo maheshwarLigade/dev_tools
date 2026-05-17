@@ -42,6 +42,7 @@ const StringInspector = lazy(() => import('../tools/StringInspector'));
 const CronParser = lazy(() => import('../tools/CronParser'));
 const ColorConverter = lazy(() => import('../tools/ColorConverter'));
 const MockDataGenerator = lazy(() => import('../tools/MockDataGenerator'));
+const ScssFormatter = lazy(() => import('../tools/ScssFormatter'));
 
 const XmlFormatter = lazy(() => import('../tools/XmlFormatter'));
 const CsvJsonConverter = lazy(() => import('../tools/CsvJsonConverter'));
@@ -102,7 +103,7 @@ export default function ToolContainer({ tool, onSelectTool, searchQuery }: ToolC
       case 'html-format': return <GenericBeautifier title="HTML Formatter" description="Beautify or minify HTML code" language="html" mode="html" />;
       case 'js-format': return <GenericBeautifier title="JS Formatter" description="Beautify or minify JavaScript/TypeScript code" language="javascript" mode="js" />;
       case 'css-format': return <GenericBeautifier title="CSS Formatter" description="Beautify or minify CSS code" language="css" mode="css" />;
-      case 'scss-format': return <GenericBeautifier title="SCSS Formatter" description="Beautify or minify SCSS code" language="scss" mode="css" />;
+      case 'scss-format': return <ScssFormatter />;
       case 'less-format': return <GenericBeautifier title="LESS Formatter" description="Beautify or minify LESS code" language="less" mode="css" />;
       case 'erb-format': return <GenericBeautifier title="ERB Formatter" description="Beautify or minify ERB templates (uses HTML mode)" language="html" mode="html" />;
       case 'line-tools': return <LineTools />;
