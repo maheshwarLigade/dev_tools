@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import ToolLayout from '../ui/ToolLayout';
 import CodeEditor from '../ui/Editor';
-import { Eye, Code, Download, Copy, ZoomIn, ZoomOut, RotateCcw, Hand, Undo2, Redo2 } from 'lucide-react';
+import { Eye, Code, Download, Copy, ZoomIn, ZoomOut, RotateCcw, Hand, Undo2, Redo2, Wand2, Minimize } from 'lucide-react';
+import { html as beautifyHtml } from 'js-beautify';
 
 interface HistoryState {
   input: string;
@@ -153,6 +154,32 @@ export default function SvgEditor() {
     navigator.clipboard.writeText(input);
   };
 
+  const formatSvg = () => {
+    saveState({ input, scale, position });
+    const formatted = beautifyHtml(input, {
+      indent_size: 2,
+      indent_char: ' ',
+      max_preserve_newlines: 1,
+      preserve_newlines: true,
+      wrap_line_length: 0,
+      unformatted: [],
+      end_with_newline: true
+    });
+    setInput(formatted);
+  };
+
+  const optimizeSvg = () => {
+    saveState({ input, scale, position });
+    // Basic optimization: remove comments, collapse whitespace, remove empty text nodes
+    let optimized = input
+      .replace(/<!--[\s\S]*?-->/g, '') // Remove comments
+      .replace(/>\s+</g, '><') // Remove whitespace between tags
+      .replace(/\n/g, '') // Remove newlines
+      .replace(/\s{2,}/g, ' ') // Collapse multiple spaces
+      .trim();
+    setInput(optimized);
+  };
+
   return (
     <ToolLayout
       title="SVG Editor"
@@ -182,6 +209,21 @@ export default function SvgEditor() {
                 title="Redo (Ctrl+Y)"
               >
                 <Redo2 size={14} />
+              </button>
+              <div className="h-4 w-[1px] bg-border-main mx-1" />
+              <button 
+                onClick={formatSvg}
+                className="p-1.5 rounded hover:bg-white/5 text-text-secondary transition-colors"
+                title="Format Code"
+              >
+                <Wand2 size={14} />
+              </button>
+              <button 
+                onClick={optimizeSvg}
+                className="p-1.5 rounded hover:bg-white/5 text-text-secondary transition-colors"
+                title="Optimize/Minify SVG"
+              >
+                <Minimize size={14} />
               </button>
               <div className="h-4 w-[1px] bg-border-main mx-1" />
               <button 

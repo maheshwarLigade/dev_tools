@@ -51,6 +51,42 @@ export default function XmlFormatter() {
     }
   };
 
+  const handleStringify = () => {
+    if (!input.trim()) return;
+    try {
+      setOutput(JSON.stringify(input.trim()));
+      setError(null);
+    } catch (err) {
+      setError((err as Error).message);
+    }
+  };
+
+  const handleUnstringify = () => {
+    if (!input.trim()) return;
+    try {
+      let unescaped = input;
+      if (input.trim().startsWith('"') && input.trim().endsWith('"')) {
+         unescaped = JSON.parse(input.trim());
+      } else {
+         unescaped = JSON.parse(`"${input.trim()}"`);
+      }
+      
+      const formatted = beautifyHtml(unescaped, {
+          indent_size: 2,
+          indent_char: ' ',
+          max_preserve_newlines: 1,
+          preserve_newlines: true,
+          wrap_line_length: 0,
+          unformatted: [],
+          end_with_newline: true
+      });
+      setOutput(formatted);
+      setError(null);
+    } catch (err) {
+      setError("Unstringify Error: " + (err as Error).message);
+    }
+  };
+
   return (
     <ToolLayout 
       title="XML Formatter" 
@@ -58,6 +94,20 @@ export default function XmlFormatter() {
       onClear={() => { setInput(''); setOutput(''); setError(null); }}
       actions={
         <div className="flex gap-2">
+          <button 
+            onClick={handleStringify}
+            className="px-3 py-1.5 rounded-md bg-bg-header hover:bg-neutral-700 text-text-secondary text-xs transition-colors border border-border-subtle"
+            title="Convert to escaped string"
+          >
+            Stringify
+          </button>
+          <button 
+            onClick={handleUnstringify}
+            className="px-3 py-1.5 rounded-md bg-bg-header hover:bg-neutral-700 text-text-secondary text-xs transition-colors border border-border-subtle"
+            title="Parse from escaped string"
+          >
+            Unstringify
+          </button>
           <button 
             onClick={() => formatXml(false)} 
             className="px-3 py-1.5 rounded-md bg-brand hover:bg-brand/90 text-white text-xs transition-colors shadow-lg shadow-brand/20"

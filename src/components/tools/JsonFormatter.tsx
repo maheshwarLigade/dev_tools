@@ -45,6 +45,44 @@ export default function JsonFormatter() {
     setError(null);
   };
 
+  const handleStringify = () => {
+    if (!input.trim()) return;
+    try {
+      // First try to parse it to ensure it's valid JSON
+      const parsed = JSON.parse(input);
+      // Minify it before stringifying to avoid \n clutter, or use current indent if preferred
+      // Usually stringified JSON is minified
+      const minified = JSON.stringify(parsed);
+      setOutput(JSON.stringify(minified));
+      setError(null);
+    } catch (err) {
+      // If it's not valid JSON, just stringify the raw input
+      setOutput(JSON.stringify(input));
+      setError(null);
+    }
+  };
+
+  const handleUnstringify = () => {
+    if (!input.trim()) return;
+    try {
+      let unescaped = input;
+      // If the input is wrapped in quotes, JSON.parse will unescape it into a normal string
+      if (input.trim().startsWith('"') && input.trim().endsWith('"')) {
+         unescaped = JSON.parse(input.trim());
+      } else {
+         // If they pasted without outer quotes but it has escapes, try to parse it
+         unescaped = JSON.parse(`"${input.trim()}"`);
+      }
+      
+      // Now format the unescaped JSON
+      const parsed = JSON.parse(unescaped);
+      setOutput(JSON.stringify(parsed, null, indent));
+      setError(null);
+    } catch (err) {
+      setError("Unstringify Error: " + (err as Error).message);
+    }
+  };
+
   return (
     <ToolLayout 
       title="JSON Formatter" 
@@ -63,6 +101,20 @@ export default function JsonFormatter() {
               <option value={4}>4 Spaces</option>
             </select>
           </div>
+          <button 
+            onClick={handleStringify}
+            className="px-3 py-1.5 rounded-md bg-bg-header hover:bg-neutral-700 text-text-secondary text-xs transition-colors border border-border-subtle"
+            title="Convert to escaped JSON string"
+          >
+            Stringify
+          </button>
+          <button 
+            onClick={handleUnstringify}
+            className="px-3 py-1.5 rounded-md bg-bg-header hover:bg-neutral-700 text-text-secondary text-xs transition-colors border border-border-subtle"
+            title="Parse from escaped JSON string"
+          >
+            Unstringify
+          </button>
           <button 
             onClick={() => formatJson(true)}
             className="px-3 py-1.5 rounded-md bg-bg-header hover:bg-neutral-700 text-text-secondary text-xs transition-colors border border-border-subtle"
