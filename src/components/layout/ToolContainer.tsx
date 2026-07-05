@@ -44,8 +44,6 @@ const ColorConverter = lazy(() => import('../tools/ColorConverter'));
 const MockDataGenerator = lazy(() => import('../tools/MockDataGenerator'));
 const ScssFormatter = lazy(() => import('../tools/ScssFormatter'));
 const RestApiManager = lazy(() => import('../tools/RestApiManager'));
-const JsonPathEvaluator = lazy(() => import('../tools/JsonPathEvaluator'));
-const TestScriptConverter = lazy(() => import('../tools/TestScriptConverter'));
 
 const XmlFormatter = lazy(() => import('../tools/XmlFormatter'));
 const CsvJsonConverter = lazy(() => import('../tools/CsvJsonConverter'));
@@ -111,8 +109,6 @@ export default function ToolContainer({ tool, onSelectTool, searchQuery }: ToolC
       case 'less-format': return <GenericBeautifier title="LESS Formatter" description="Beautify or minify LESS code" language="less" mode="css" />;
       case 'erb-format': return <GenericBeautifier title="ERB Formatter" description="Beautify or minify ERB templates (uses HTML mode)" language="html" mode="html" />;
       case 'line-tools': return <LineTools />;
-      case 'jsonpath-evaluator': return <JsonPathEvaluator />;
-      case 'test-script-converter': return <TestScriptConverter />;
       default:
         return (
           <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-950">

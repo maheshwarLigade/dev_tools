@@ -44,7 +44,6 @@
     "express": "^4.21.2",
     "js-beautify": "^1.15.4",
     "js-yaml": "^4.1.1",
-    "jsonpath-plus": "^10.4.0",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.546.0",
     "motion": "^12.23.24",

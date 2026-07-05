@@ -201,13 +201,6 @@ export const TOOLS: ToolDefinition[] = [
     category: 'Converters',
     icon: ShieldCheck
   },
-  {
-    id: 'test-script-converter',
-    name: 'Test Script Converter',
-    description: 'Convert JSON responses to UI/API automation test scripts',
-    category: 'Converters',
-    icon: Code2
-  },
 
   // Generators
   {
@@ -304,13 +297,6 @@ export const TOOLS: ToolDefinition[] = [
     description: 'Decode and inspect JSON Web Tokens',
     category: 'Inspectors',
     icon: ShieldCheck
-  },
-  {
-    id: 'jsonpath-evaluator',
-    name: 'JSONPath Evaluator',
-    description: 'Evaluate JSONPath expressions against JSON data',
-    category: 'Inspectors',
-    icon: Search
   },
   {
     id: 'markdown-preview',
