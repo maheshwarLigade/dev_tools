@@ -25,7 +25,10 @@ import {
   Activity,
   TrendingUp,
   Zap,
-  Percent
+  Percent,
+  Bookmark,
+  BookOpen,
+  Shield
 } from 'lucide-react';
 import {
   LineChart,
@@ -106,7 +109,7 @@ interface RequestHistory {
   url: string;
   headers: Header[];
   body: string;
-  authType: 'none' | 'basic' | 'bearer' | 'apikey';
+  authType: 'none' | 'basic' | 'bearer' | 'apikey' | 'oauth2';
   basicUser: string;
   basicPass: string;
   bearerToken: string;
@@ -119,6 +122,46 @@ interface RequestHistory {
   statusCode?: number;
   statusText?: string;
   error?: string;
+  oauthGrantType?: 'client_credentials' | 'password' | 'authorization_code';
+  oauthTokenUrl?: string;
+  oauthClientId?: string;
+  oauthClientSecret?: string;
+  oauthScope?: string;
+  oauthUsername?: string;
+  oauthPassword?: string;
+  oauthAuthorizeUrl?: string;
+  oauthAuthCode?: string;
+  oauthAccessToken?: string;
+}
+
+interface RequestSnippet {
+  id: string;
+  name: string;
+  description: string;
+  method: string;
+  url: string;
+  headers: Header[];
+  body: string;
+  authType: 'none' | 'basic' | 'bearer' | 'apikey' | 'oauth2';
+  basicUser: string;
+  basicPass: string;
+  bearerToken: string;
+  apiKeyName: string;
+  apiKeyValue: string;
+  timeoutSec: number;
+  tags?: string[];
+  createdAt: number;
+  isPreset?: boolean;
+  oauthGrantType?: 'client_credentials' | 'password' | 'authorization_code';
+  oauthTokenUrl?: string;
+  oauthClientId?: string;
+  oauthClientSecret?: string;
+  oauthScope?: string;
+  oauthUsername?: string;
+  oauthPassword?: string;
+  oauthAuthorizeUrl?: string;
+  oauthAuthCode?: string;
+  oauthAccessToken?: string;
 }
 
 interface EnvVariable {
@@ -168,29 +211,193 @@ const CustomTooltip = ({ active, payload }: any) => {
   return null;
 };
 
+interface ApiSession {
+  id: string;
+  name: string;
+  method: string;
+  url: string;
+  queryParams: QueryParam[];
+  headers: Header[];
+  body: string;
+  timeoutSec: number;
+  response: any;
+  loading: boolean;
+  error: string | null;
+  responseTime: number | null;
+  activeTab: 'params' | 'headers' | 'body' | 'auth' | 'mock';
+  isMockEnabled: boolean;
+  mockStatus: number;
+  mockResponseBody: string;
+  authType: 'none' | 'basic' | 'bearer' | 'apikey' | 'oauth2';
+  basicUser: string;
+  basicPass: string;
+  bearerToken: string;
+  apiKeyName: string;
+  apiKeyValue: string;
+  oauthGrantType: 'client_credentials' | 'password' | 'authorization_code';
+  oauthTokenUrl: string;
+  oauthClientId: string;
+  oauthClientSecret: string;
+  oauthScope: string;
+  oauthUsername: string;
+  oauthPassword: string;
+  oauthAuthorizeUrl: string;
+  oauthAuthCode: string;
+  oauthAccessToken: string;
+}
+
 export default function RestApiManager() {
-  const [method, setMethod] = useState('GET');
-  const [url, setUrl] = useState('');
-  const [queryParams, setQueryParams] = useState<QueryParam[]>([]);
-  const [headers, setHeaders] = useState<Header[]>([
-    { key: 'Content-Type', value: 'application/json', enabled: true }
-  ]);
-  const [body, setBody] = useState('');
-  const [timeoutSec, setTimeoutSec] = useState<number>(30);
-  const [response, setResponse] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [responseTime, setResponseTime] = useState<number | null>(null);
-  const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'body' | 'auth' | 'mock'>('headers');
-  const [isMockEnabled, setIsMockEnabled] = useState(false);
-  const [mockStatus, setMockStatus] = useState<number>(200);
-  const [mockResponseBody, setMockResponseBody] = useState<string>('{\n  "status": "success",\n  "message": "This is a mock response payload"\n}');
-  const [authType, setAuthType] = useState<'none' | 'basic' | 'bearer' | 'apikey'>('none');
-  const [basicUser, setBasicUser] = useState('');
-  const [basicPass, setBasicPass] = useState('');
-  const [bearerToken, setBearerToken] = useState('');
-  const [apiKeyName, setApiKeyName] = useState('X-API-Key');
-  const [apiKeyValue, setApiKeyValue] = useState('');
+  const [sessions, setSessions] = useState<ApiSession[]>(() => {
+    const saved = localStorage.getItem('devtools-rest-sessions');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch (e) {}
+    }
+    
+    // Migration: try to load existing work from localStorage
+    const savedMethod = localStorage.getItem('devtools-rest-method') || 'GET';
+    const savedUrl = localStorage.getItem('devtools-rest-url') || '';
+    let savedParams: QueryParam[] = [];
+    try {
+      const p = localStorage.getItem('devtools-rest-query-params');
+      if (p) savedParams = JSON.parse(p);
+    } catch(e){}
+    let savedHeaders: Header[] = [{ key: 'Content-Type', value: 'application/json', enabled: true }];
+    try {
+      const h = localStorage.getItem('devtools-rest-headers');
+      if (h) savedHeaders = JSON.parse(h);
+    } catch(e){}
+    const savedBody = localStorage.getItem('devtools-rest-body') || '';
+    
+    return [
+      {
+        id: 'default',
+        name: 'Request 1',
+        method: savedMethod,
+        url: savedUrl,
+        queryParams: savedParams,
+        headers: savedHeaders,
+        body: savedBody,
+        timeoutSec: 30,
+        response: null,
+        loading: false,
+        error: null,
+        responseTime: null,
+        activeTab: 'headers',
+        isMockEnabled: false,
+        mockStatus: 200,
+        mockResponseBody: '{\n  "status": "success",\n  "message": "This is a mock response payload"\n}',
+        authType: 'none',
+        basicUser: '',
+        basicPass: '',
+        bearerToken: '',
+        apiKeyName: 'X-API-Key',
+        apiKeyValue: '',
+        oauthGrantType: 'client_credentials',
+        oauthTokenUrl: '',
+        oauthClientId: '',
+        oauthClientSecret: '',
+        oauthScope: '',
+        oauthUsername: '',
+        oauthPassword: '',
+        oauthAuthorizeUrl: '',
+        oauthAuthCode: '',
+        oauthAccessToken: ''
+      }
+    ];
+  });
+
+  const [activeSessionId, setActiveSessionId] = useState<string>(() => {
+    return localStorage.getItem('devtools-rest-active-session-id') || 'default';
+  });
+
+  const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+  const [editingSessionName, setEditingSessionName] = useState<string>('');
+
+  const isSwitchingRef = React.useRef(false);
+
+  // Get active session data for initial states
+  const initialSession = useMemo(() => {
+    const saved = localStorage.getItem('devtools-rest-sessions');
+    let loadedSessions: ApiSession[] = [];
+    if (saved) {
+      try {
+        loadedSessions = JSON.parse(saved);
+      } catch (e) {}
+    }
+    const actId = localStorage.getItem('devtools-rest-active-session-id') || 'default';
+    return ((loadedSessions.find(s => s.id === actId) || loadedSessions[0]) || {
+      id: 'default',
+      name: 'Request 1',
+      method: 'GET',
+      url: '',
+      queryParams: [],
+      headers: [{ key: 'Content-Type', value: 'application/json', enabled: true }],
+      body: '',
+      timeoutSec: 30,
+      response: null,
+      loading: false,
+      error: null,
+      responseTime: null,
+      activeTab: 'headers',
+      isMockEnabled: false,
+      mockStatus: 200,
+      mockResponseBody: '{\n  "status": "success",\n  "message": "This is a mock response payload"\n}',
+      authType: 'none',
+      basicUser: '',
+      basicPass: '',
+      bearerToken: '',
+      apiKeyName: 'X-API-Key',
+      apiKeyValue: '',
+      oauthGrantType: 'client_credentials',
+      oauthTokenUrl: '',
+      oauthClientId: '',
+      oauthClientSecret: '',
+      oauthScope: '',
+      oauthUsername: '',
+      oauthPassword: '',
+      oauthAuthorizeUrl: '',
+      oauthAuthCode: '',
+      oauthAccessToken: ''
+    }) as ApiSession;
+  }, []);
+
+  const [method, setMethod] = useState(initialSession.method);
+  const [url, setUrl] = useState(initialSession.url);
+  const [queryParams, setQueryParams] = useState<QueryParam[]>(initialSession.queryParams || []);
+  const [headers, setHeaders] = useState<Header[]>(initialSession.headers || [{ key: 'Content-Type', value: 'application/json', enabled: true }]);
+  const [body, setBody] = useState(initialSession.body || '');
+  const [timeoutSec, setTimeoutSec] = useState<number>(initialSession.timeoutSec !== undefined ? initialSession.timeoutSec : 30);
+  const [response, setResponse] = useState<any>(initialSession.response);
+  const [loading, setLoading] = useState(initialSession.loading || false);
+  const [error, setError] = useState<string | null>(initialSession.error);
+  const [responseTime, setResponseTime] = useState<number | null>(initialSession.responseTime);
+  const [activeTab, setActiveTab] = useState<'params' | 'headers' | 'body' | 'auth' | 'mock'>(initialSession.activeTab || 'headers');
+  const [isMockEnabled, setIsMockEnabled] = useState(initialSession.isMockEnabled || false);
+  const [mockStatus, setMockStatus] = useState<number>(initialSession.mockStatus || 200);
+  const [mockResponseBody, setMockResponseBody] = useState<string>(initialSession.mockResponseBody || '');
+  const [authType, setAuthType] = useState<'none' | 'basic' | 'bearer' | 'apikey' | 'oauth2'>(initialSession.authType || 'none');
+  const [basicUser, setBasicUser] = useState(initialSession.basicUser || '');
+  const [basicPass, setBasicPass] = useState(initialSession.basicPass || '');
+  const [bearerToken, setBearerToken] = useState(initialSession.bearerToken || '');
+  const [apiKeyName, setApiKeyName] = useState(initialSession.apiKeyName || 'X-API-Key');
+  const [apiKeyValue, setApiKeyValue] = useState(initialSession.apiKeyValue || '');
+
+  // OAuth 2.0 configuration states
+  const [oauthGrantType, setOauthGrantType] = useState<'client_credentials' | 'password' | 'authorization_code'>(initialSession.oauthGrantType || 'client_credentials');
+  const [oauthTokenUrl, setOauthTokenUrl] = useState(initialSession.oauthTokenUrl || '');
+  const [oauthClientId, setOauthClientId] = useState(initialSession.oauthClientId || '');
+  const [oauthClientSecret, setOauthClientSecret] = useState(initialSession.oauthClientSecret || '');
+  const [oauthScope, setOauthScope] = useState(initialSession.oauthScope || '');
+  const [oauthUsername, setOauthUsername] = useState(initialSession.oauthUsername || '');
+  const [oauthPassword, setOauthPassword] = useState(initialSession.oauthPassword || '');
+  const [oauthAuthorizeUrl, setOauthAuthorizeUrl] = useState(initialSession.oauthAuthorizeUrl || '');
+  const [oauthAuthCode, setOauthAuthCode] = useState(initialSession.oauthAuthCode || '');
+  const [oauthAccessToken, setOauthAccessToken] = useState(initialSession.oauthAccessToken || '');
+  const [oauthLoading, setOauthLoading] = useState(false);
+  const [oauthError, setOauthError] = useState<string | null>(null);
   const [curlInput, setCurlInput] = useState('');
   const [showCurlModal, setShowCurlModal] = useState(false);
   const [history, setHistory] = useState<RequestHistory[]>([]);
@@ -226,6 +433,292 @@ export default function RestApiManager() {
   }, [lastSentBody, body]);
 
   const [showDashboardModal, setShowDashboardModal] = useState(false);
+
+  // Snippets Library States
+  const [showSnippetsModal, setShowSnippetsModal] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [saveSnippetName, setSaveSnippetName] = useState('');
+  const [saveSnippetDescription, setSaveSnippetDescription] = useState('');
+  const [saveSnippetTags, setSaveSnippetTags] = useState('');
+  const [snippetsSearch, setSnippetsSearch] = useState('');
+  const [snippetsMethodFilter, setSnippetsMethodFilter] = useState('ALL');
+
+  const [snippets, setSnippets] = useState<RequestSnippet[]>(() => {
+    const saved = localStorage.getItem('rest_api_snippets');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Failed to parse saved snippets', e);
+      }
+    }
+    // Return high-quality, pre-populated presets
+    return [
+      {
+        id: 'def-1',
+        name: 'GET JSONPlaceholder Posts',
+        description: 'Retrieve mock posts for testing list views and UI layout rendering.',
+        method: 'GET',
+        url: 'https://jsonplaceholder.typicode.com/posts',
+        headers: [{ key: 'Content-Type', value: 'application/json', enabled: true }],
+        body: '',
+        authType: 'none',
+        basicUser: '',
+        basicPass: '',
+        bearerToken: '',
+        apiKeyName: 'X-API-Key',
+        apiKeyValue: '',
+        timeoutSec: 30,
+        tags: ['Mock', 'JSONPlaceholder', 'GET'],
+        createdAt: Date.now(),
+        isPreset: true
+      },
+      {
+        id: 'def-2',
+        name: 'POST Create Post (JSON Payload)',
+        description: 'Send a JSON payload to a mock API endpoint to simulate resource creation.',
+        method: 'POST',
+        url: 'https://jsonplaceholder.typicode.com/posts',
+        headers: [{ key: 'Content-Type', value: 'application/json', enabled: true }],
+        body: '{\n  "title": "Rest API Sandbox Tutorial",\n  "body": "This request was loaded from the built-in Snippets Library!",\n  "userId": 1\n}',
+        authType: 'none',
+        basicUser: '',
+        basicPass: '',
+        bearerToken: '',
+        apiKeyName: 'X-API-Key',
+        apiKeyValue: '',
+        timeoutSec: 30,
+        tags: ['Mock', 'POST', 'JSON'],
+        createdAt: Date.now(),
+        isPreset: true
+      },
+      {
+        id: 'def-3',
+        name: 'GET GitHub User Profile',
+        description: 'Fetch public metadata profile details of GitHub\'s octocat developer user.',
+        method: 'GET',
+        url: 'https://api.github.com/users/octocat',
+        headers: [{ key: 'Content-Type', value: 'application/json', enabled: true }],
+        body: '',
+        authType: 'none',
+        basicUser: '',
+        basicPass: '',
+        bearerToken: '',
+        apiKeyName: 'X-API-Key',
+        apiKeyValue: '',
+        timeoutSec: 30,
+        tags: ['GitHub', 'Profile', 'Public-API'],
+        createdAt: Date.now(),
+        isPreset: true
+      },
+      {
+        id: 'def-4',
+        name: 'POST Gemini Content Generation',
+        description: 'Standard JSON request body format for calling Gemini models via official Google REST endpoints.',
+        method: 'POST',
+        url: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent',
+        headers: [
+          { key: 'Content-Type', value: 'application/json', enabled: true },
+          { key: 'x-goog-api-key', value: 'AIzaSyYourKeyHere', enabled: false }
+        ],
+        body: '{\n  "contents": [\n    {\n      "parts": [\n        {\n          "text": "Explain quantum computing in three sentences."\n        }\n      ]\n    }\n  ]\n}',
+        authType: 'none',
+        basicUser: '',
+        basicPass: '',
+        bearerToken: '',
+        apiKeyName: 'x-goog-api-key',
+        apiKeyValue: '',
+        timeoutSec: 60,
+        tags: ['Gemini', 'AI', 'POST'],
+        createdAt: Date.now(),
+        isPreset: true
+      }
+    ];
+  });
+
+  const saveSnippets = (newSnippets: RequestSnippet[]) => {
+    setSnippets(newSnippets);
+    localStorage.setItem('rest_api_snippets', JSON.stringify(newSnippets));
+  };
+
+  const handleOpenSaveSnippetModal = () => {
+    let defaultName = `${method} Request`;
+    if (url) {
+      try {
+        const parsedUrl = new URL(resolveStr(url));
+        defaultName = `${method} - ${parsedUrl.hostname}${parsedUrl.pathname.substring(0, 15)}`;
+      } catch (e) {
+        const cleanUrl = url.replace(/https?:\/\//, '');
+        defaultName = `${method} - ${cleanUrl.substring(0, 20)}`;
+      }
+    }
+    setSaveSnippetName(defaultName);
+    setSaveSnippetDescription('');
+    setSaveSnippetTags(method);
+    setShowSaveModal(true);
+  };
+
+  const handleSaveSnippet = () => {
+    if (!saveSnippetName.trim()) return;
+
+    const newSnippet: RequestSnippet = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: saveSnippetName.trim(),
+      description: saveSnippetDescription.trim(),
+      method,
+      url,
+      headers: [...headers],
+      body,
+      authType,
+      basicUser,
+      basicPass,
+      bearerToken,
+      apiKeyName,
+      apiKeyValue,
+      timeoutSec,
+      tags: saveSnippetTags.split(',').map(t => t.trim()).filter(Boolean),
+      createdAt: Date.now(),
+      oauthGrantType,
+      oauthTokenUrl,
+      oauthClientId,
+      oauthClientSecret,
+      oauthScope,
+      oauthUsername,
+      oauthPassword,
+      oauthAuthorizeUrl,
+      oauthAuthCode,
+      oauthAccessToken
+    };
+
+    const updated = [newSnippet, ...snippets];
+    saveSnippets(updated);
+    setShowSaveModal(false);
+  };
+
+  const loadSnippet = (snip: RequestSnippet) => {
+    setMethod(snip.method);
+    setUrl(snip.url);
+    setQueryParams(parseParamsFromUrl(snip.url));
+    setHeaders(snip.headers || []);
+    setBody(snip.body || '');
+    setAuthType(snip.authType || 'none');
+    setBasicUser(snip.basicUser || '');
+    setBasicPass(snip.basicPass || '');
+    setBearerToken(snip.bearerToken || '');
+    setApiKeyName(snip.apiKeyName || 'X-API-Key');
+    setApiKeyValue(snip.apiKeyValue || '');
+    setTimeoutSec(snip.timeoutSec !== undefined ? snip.timeoutSec : 30);
+
+    if (snip.oauthGrantType) setOauthGrantType(snip.oauthGrantType);
+    if (snip.oauthTokenUrl) setOauthTokenUrl(snip.oauthTokenUrl);
+    if (snip.oauthClientId) setOauthClientId(snip.oauthClientId);
+    if (snip.oauthClientSecret) setOauthClientSecret(snip.oauthClientSecret);
+    if (snip.oauthScope) setOauthScope(snip.oauthScope);
+    if (snip.oauthUsername) setOauthUsername(snip.oauthUsername);
+    if (snip.oauthPassword) setOauthPassword(snip.oauthPassword);
+    if (snip.oauthAuthorizeUrl) setOauthAuthorizeUrl(snip.oauthAuthorizeUrl);
+    if (snip.oauthAuthCode) setOauthAuthCode(snip.oauthAuthCode);
+    if (snip.oauthAccessToken) setOauthAccessToken(snip.oauthAccessToken);
+    
+    if (snip.body) setActiveTab('body');
+    else if (snip.authType && snip.authType !== 'none') setActiveTab('auth');
+    else setActiveTab('headers');
+
+    setShowSnippetsModal(false);
+  };
+
+  const deleteSnippet = (id: string) => {
+    const updated = snippets.filter(s => s.id !== id);
+    saveSnippets(updated);
+  };
+
+  const filteredSnippets = useMemo(() => {
+    return snippets.filter(snip => {
+      // Method Filter
+      if (snippetsMethodFilter !== 'ALL' && snip.method !== snippetsMethodFilter) {
+        return false;
+      }
+      // Search text filter
+      if (snippetsSearch.trim()) {
+        const query = snippetsSearch.toLowerCase();
+        const nameMatch = snip.name.toLowerCase().includes(query);
+        const descMatch = snip.description.toLowerCase().includes(query);
+        const urlMatch = snip.url.toLowerCase().includes(query);
+        const tagsMatch = snip.tags?.some(t => t.toLowerCase().includes(query)) || false;
+        return nameMatch || descMatch || urlMatch || tagsMatch;
+      }
+      return true;
+    });
+  }, [snippets, snippetsSearch, snippetsMethodFilter]);
+
+  const exportSnippets = () => {
+    const dataStr = JSON.stringify(snippets, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `rest_api_snippets_${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importSnippets = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const imported = JSON.parse(event.target?.result as string);
+        if (Array.isArray(imported)) {
+          // Validate structure minimally
+          const validated = imported.map(item => ({
+            id: item.id || Math.random().toString(36).substr(2, 9),
+            name: item.name || 'Imported Snippet',
+            description: item.description || '',
+            method: item.method || 'GET',
+            url: item.url || '',
+            headers: Array.isArray(item.headers) ? item.headers : [],
+            body: item.body || '',
+            authType: item.authType || 'none',
+            basicUser: item.basicUser || '',
+            basicPass: item.basicPass || '',
+            bearerToken: item.bearerToken || '',
+            apiKeyName: item.apiKeyName || 'X-API-Key',
+            apiKeyValue: item.apiKeyValue || '',
+            timeoutSec: typeof item.timeoutSec === 'number' ? item.timeoutSec : 30,
+            tags: Array.isArray(item.tags) ? item.tags : [],
+            createdAt: item.createdAt || Date.now(),
+            oauthGrantType: item.oauthGrantType,
+            oauthTokenUrl: item.oauthTokenUrl,
+            oauthClientId: item.oauthClientId,
+            oauthClientSecret: item.oauthClientSecret,
+            oauthScope: item.oauthScope,
+            oauthUsername: item.oauthUsername,
+            oauthPassword: item.oauthPassword,
+            oauthAuthorizeUrl: item.oauthAuthorizeUrl,
+            oauthAuthCode: item.oauthAuthCode,
+            oauthAccessToken: item.oauthAccessToken
+          }));
+
+          // Merge without duplicate IDs
+          const existingIds = new Set(snippets.map(s => s.id));
+          const filteredImported = validated.filter(v => !existingIds.has(v.id));
+          
+          const merged = [...filteredImported, ...snippets];
+          saveSnippets(merged);
+          alert(`Successfully imported ${filteredImported.length} new request snippet(s)!`);
+        } else {
+          alert('Invalid file format. Snippet files should contain a JSON array.');
+        }
+      } catch (err) {
+        alert('Failed to parse file. Ensure it is a valid JSON file.');
+      }
+    };
+    reader.readAsText(file);
+    // Reset input
+    e.target.value = '';
+  };
 
   const dashboardMetrics = useMemo(() => {
     if (history.length === 0) {
@@ -510,6 +1003,134 @@ export default function RestApiManager() {
     }
   }, []);
 
+  // Listen for OAuth Success message from Authorization Popup
+  React.useEffect(() => {
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === 'OAUTH_AUTH_SUCCESS' && event.data?.code) {
+        setOauthAuthCode(event.data.code);
+        setOauthError(null);
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
+
+  const handleOAuthAuthorize = () => {
+    if (!oauthAuthorizeUrl) {
+      setOauthError('Authorization URL is required');
+      return;
+    }
+    const resolvedAuthUrl = resolveStr(oauthAuthorizeUrl);
+    const resolvedClientId = resolveStr(oauthClientId);
+    const resolvedScope = resolveStr(oauthScope);
+
+    // Construct authorize URL with parameters
+    const params = new URLSearchParams({
+      response_type: 'code',
+      client_id: resolvedClientId,
+      redirect_uri: `${window.location.origin}/`,
+    });
+    if (resolvedScope) {
+      params.append('scope', resolvedScope);
+    }
+
+    const separator = resolvedAuthUrl.includes('?') ? '&' : '?';
+    const authUrl = `${resolvedAuthUrl.startsWith('http') ? resolvedAuthUrl : `https://${resolvedAuthUrl}`}${separator}${params.toString()}`;
+
+    const authWindow = window.open(
+      authUrl,
+      'oauth_popup',
+      'width=600,height=700'
+    );
+
+    if (!authWindow) {
+      setOauthError('Popup blocker active. Please allow popups for this site.');
+    }
+  };
+
+  const fetchOAuthToken = async () => {
+    if (!oauthTokenUrl) {
+      setOauthError('Token URL is required');
+      return;
+    }
+
+    setOauthLoading(true);
+    setOauthError(null);
+
+    try {
+      const bodyParams = new URLSearchParams();
+      const headersObj: Record<string, string> = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      };
+
+      const resolvedTokenUrl = resolveStr(oauthTokenUrl);
+      const resolvedClientId = resolveStr(oauthClientId);
+      const resolvedClientSecret = resolveStr(oauthClientSecret);
+      const resolvedScope = resolveStr(oauthScope);
+
+      if (oauthGrantType === 'client_credentials') {
+        bodyParams.append('grant_type', 'client_credentials');
+        bodyParams.append('client_id', resolvedClientId);
+        bodyParams.append('client_secret', resolvedClientSecret);
+        if (resolvedScope) {
+          bodyParams.append('scope', resolvedScope);
+        }
+        // Add Basic Auth header for client_credentials if available
+        const creds = btoa(`${resolvedClientId}:${resolvedClientSecret}`);
+        headersObj['Authorization'] = `Basic ${creds}`;
+      } else if (oauthGrantType === 'password') {
+        bodyParams.append('grant_type', 'password');
+        bodyParams.append('username', resolveStr(oauthUsername));
+        bodyParams.append('password', resolveStr(oauthPassword));
+        if (resolvedClientId) {
+          bodyParams.append('client_id', resolvedClientId);
+        }
+        if (resolvedClientSecret) {
+          bodyParams.append('client_secret', resolvedClientSecret);
+        }
+        if (resolvedScope) {
+          bodyParams.append('scope', resolvedScope);
+        }
+      } else if (oauthGrantType === 'authorization_code') {
+        if (!oauthAuthCode) {
+          throw new Error('Authorization Code is required. Please get it first using Step 1.');
+        }
+        bodyParams.append('grant_type', 'authorization_code');
+        bodyParams.append('code', resolveStr(oauthAuthCode));
+        bodyParams.append('redirect_uri', `${window.location.origin}/`);
+        bodyParams.append('client_id', resolvedClientId);
+        bodyParams.append('client_secret', resolvedClientSecret);
+      }
+
+      const response = await fetch(
+        resolvedTokenUrl.startsWith('http') ? resolvedTokenUrl : `https://${resolvedTokenUrl}`,
+        {
+          method: 'POST',
+          headers: headersObj,
+          body: bodyParams.toString(),
+        }
+      );
+
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`HTTP ${response.status}: ${errText || response.statusText}`);
+      }
+
+      const tokenData = await response.json();
+      if (tokenData.access_token) {
+        setOauthAccessToken(tokenData.access_token);
+        setOauthError(null);
+      } else {
+        throw new Error('Response did not contain an access_token field: ' + JSON.stringify(tokenData));
+      }
+    } catch (err: any) {
+      console.error('OAuth 2.0 Error:', err);
+      setOauthError(err instanceof Error ? err.message : 'Failed to obtain access token');
+    } finally {
+      setOauthLoading(false);
+    }
+  };
+
   // Save history to localStorage
   React.useEffect(() => {
     localStorage.setItem('devtools-rest-history', JSON.stringify(history));
@@ -535,6 +1156,545 @@ export default function RestApiManager() {
   React.useEffect(() => {
     localStorage.setItem('devtools-rest-mock-response-body', mockResponseBody);
   }, [mockResponseBody]);
+
+  // Save OAuth 2.0 configurations to localStorage
+  React.useEffect(() => {
+    localStorage.setItem('devtools-rest-oauth-grant-type', oauthGrantType);
+  }, [oauthGrantType]);
+  React.useEffect(() => {
+    localStorage.setItem('devtools-rest-oauth-token-url', oauthTokenUrl);
+  }, [oauthTokenUrl]);
+  React.useEffect(() => {
+    localStorage.setItem('devtools-rest-oauth-client-id', oauthClientId);
+  }, [oauthClientId]);
+  React.useEffect(() => {
+    localStorage.setItem('devtools-rest-oauth-client-secret', oauthClientSecret);
+  }, [oauthClientSecret]);
+  React.useEffect(() => {
+    localStorage.setItem('devtools-rest-oauth-scope', oauthScope);
+  }, [oauthScope]);
+  React.useEffect(() => {
+    localStorage.setItem('devtools-rest-oauth-username', oauthUsername);
+  }, [oauthUsername]);
+  React.useEffect(() => {
+    localStorage.setItem('devtools-rest-oauth-password', oauthPassword);
+  }, [oauthPassword]);
+  React.useEffect(() => {
+    localStorage.setItem('devtools-rest-oauth-authorize-url', oauthAuthorizeUrl);
+  }, [oauthAuthorizeUrl]);
+  React.useEffect(() => {
+    localStorage.setItem('devtools-rest-oauth-auth-code', oauthAuthCode);
+  }, [oauthAuthCode]);
+  React.useEffect(() => {
+    localStorage.setItem('devtools-rest-oauth-access-token', oauthAccessToken);
+  }, [oauthAccessToken]);
+
+  // Keyboard shortcuts for REST API Manager
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Send Request (Ctrl + Enter)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        sendRequest();
+      }
+      // Save Snippet (Ctrl + S)
+      if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault();
+        handleOpenSaveSnippetModal();
+      }
+      // Open Snippets Library (Ctrl + O)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+        e.preventDefault();
+        setShowSnippetsModal(true);
+      }
+      // Import Curl (Ctrl + I)
+      if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+        e.preventDefault();
+        setShowCurlModal(true);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    url,
+    method,
+    queryParams,
+    headers,
+    body,
+    authType,
+    basicUser,
+    basicPass,
+    bearerToken,
+    apiKeyName,
+    apiKeyValue,
+    timeoutSec,
+    oauthGrantType,
+    oauthTokenUrl,
+    oauthClientId,
+    oauthClientSecret,
+    oauthScope,
+    oauthUsername,
+    oauthPassword,
+    oauthAuthorizeUrl,
+    oauthAuthCode,
+    oauthAccessToken,
+    isMockEnabled,
+    mockStatus,
+    mockResponseBody
+  ]);
+
+  // Save sessions to localStorage
+  React.useEffect(() => {
+    localStorage.setItem('devtools-rest-sessions', JSON.stringify(sessions));
+  }, [sessions]);
+
+  // Save activeSessionId to localStorage
+  React.useEffect(() => {
+    localStorage.setItem('devtools-rest-active-session-id', activeSessionId);
+  }, [activeSessionId]);
+
+  // Sync state changes to the active session object in the sessions array
+  React.useEffect(() => {
+    if (isSwitchingRef.current) return;
+    setSessions(prev => prev.map(s => {
+      if (s.id === activeSessionId) {
+        return {
+          ...s,
+          method,
+          url,
+          queryParams,
+          headers,
+          body,
+          timeoutSec,
+          response,
+          loading,
+          error,
+          responseTime,
+          activeTab,
+          isMockEnabled,
+          mockStatus,
+          mockResponseBody,
+          authType,
+          basicUser,
+          basicPass,
+          bearerToken,
+          apiKeyName,
+          apiKeyValue,
+          oauthGrantType,
+          oauthTokenUrl,
+          oauthClientId,
+          oauthClientSecret,
+          oauthScope,
+          oauthUsername,
+          oauthPassword,
+          oauthAuthorizeUrl,
+          oauthAuthCode,
+          oauthAccessToken
+        };
+      }
+      return s;
+    }));
+  }, [
+    activeSessionId,
+    method,
+    url,
+    queryParams,
+    headers,
+    body,
+    timeoutSec,
+    response,
+    loading,
+    error,
+    responseTime,
+    activeTab,
+    isMockEnabled,
+    mockStatus,
+    mockResponseBody,
+    authType,
+    basicUser,
+    basicPass,
+    bearerToken,
+    apiKeyName,
+    apiKeyValue,
+    oauthGrantType,
+    oauthTokenUrl,
+    oauthClientId,
+    oauthClientSecret,
+    oauthScope,
+    oauthUsername,
+    oauthPassword,
+    oauthAuthorizeUrl,
+    oauthAuthCode,
+    oauthAccessToken
+  ]);
+
+  const switchSession = (newSessionId: string) => {
+    if (newSessionId === activeSessionId) return;
+
+    // First save current states to sessions
+    setSessions(prev => {
+      const savedList = prev.map(s => {
+        if (s.id === activeSessionId) {
+          return {
+            ...s,
+            method,
+            url,
+            queryParams,
+            headers,
+            body,
+            timeoutSec,
+            response,
+            loading,
+            error,
+            responseTime,
+            activeTab,
+            isMockEnabled,
+            mockStatus,
+            mockResponseBody,
+            authType,
+            basicUser,
+            basicPass,
+            bearerToken,
+            apiKeyName,
+            apiKeyValue,
+            oauthGrantType,
+            oauthTokenUrl,
+            oauthClientId,
+            oauthClientSecret,
+            oauthScope,
+            oauthUsername,
+            oauthPassword,
+            oauthAuthorizeUrl,
+            oauthAuthCode,
+            oauthAccessToken
+          };
+        }
+        return s;
+      });
+
+      const target = savedList.find(s => s.id === newSessionId);
+      if (target) {
+        isSwitchingRef.current = true;
+        setMethod(target.method);
+        setUrl(target.url);
+        setQueryParams(target.queryParams || []);
+        setHeaders(target.headers || []);
+        setBody(target.body || '');
+        setTimeoutSec(target.timeoutSec !== undefined ? target.timeoutSec : 30);
+        setResponse(target.response);
+        setLoading(target.loading || false);
+        setError(target.error);
+        setResponseTime(target.responseTime);
+        setActiveTab(target.activeTab || 'headers');
+        setIsMockEnabled(target.isMockEnabled || false);
+        setMockStatus(target.mockStatus || 200);
+        setMockResponseBody(target.mockResponseBody || '');
+        setAuthType(target.authType || 'none');
+        setBasicUser(target.basicUser || '');
+        setBasicPass(target.basicPass || '');
+        setBearerToken(target.bearerToken || '');
+        setApiKeyName(target.apiKeyName || 'X-API-Key');
+        setApiKeyValue(target.apiKeyValue || '');
+        setOauthGrantType(target.oauthGrantType || 'client_credentials');
+        setOauthTokenUrl(target.oauthTokenUrl || '');
+        setOauthClientId(target.oauthClientId || '');
+        setOauthClientSecret(target.oauthClientSecret || '');
+        setOauthScope(target.oauthScope || '');
+        setOauthUsername(target.oauthUsername || '');
+        setOauthPassword(target.oauthPassword || '');
+        setOauthAuthorizeUrl(target.oauthAuthorizeUrl || '');
+        setOauthAuthCode(target.oauthAuthCode || '');
+        setOauthAccessToken(target.oauthAccessToken || '');
+
+        setActiveSessionId(newSessionId);
+        
+        setTimeout(() => {
+          isSwitchingRef.current = false;
+        }, 0);
+      }
+
+      return savedList;
+    });
+  };
+
+  const createNewSession = (initialUrl = '', initialMethod = 'GET', name?: string) => {
+    setSessions(prev => {
+      const nextSessions = prev.map(s => {
+        if (s.id === activeSessionId) {
+          return {
+            ...s,
+            method,
+            url,
+            queryParams,
+            headers,
+            body,
+            timeoutSec,
+            response,
+            loading,
+            error,
+            responseTime,
+            activeTab,
+            isMockEnabled,
+            mockStatus,
+            mockResponseBody,
+            authType,
+            basicUser,
+            basicPass,
+            bearerToken,
+            apiKeyName,
+            apiKeyValue,
+            oauthGrantType,
+            oauthTokenUrl,
+            oauthClientId,
+            oauthClientSecret,
+            oauthScope,
+            oauthUsername,
+            oauthPassword,
+            oauthAuthorizeUrl,
+            oauthAuthCode,
+            oauthAccessToken
+          };
+        }
+        return s;
+      });
+
+      const newId = 'session_' + Date.now();
+      const newSession: ApiSession = {
+        id: newId,
+        name: name || `Request ${nextSessions.length + 1}`,
+        method: initialMethod,
+        url: initialUrl,
+        queryParams: [],
+        headers: [{ key: 'Content-Type', value: 'application/json', enabled: true }],
+        body: '',
+        timeoutSec: 30,
+        response: null,
+        loading: false,
+        error: null,
+        responseTime: null,
+        activeTab: 'headers',
+        isMockEnabled: false,
+        mockStatus: 200,
+        mockResponseBody: '{\n  "status": "success",\n  "message": "This is a mock response payload"\n}',
+        authType: 'none',
+        basicUser: '',
+        basicPass: '',
+        bearerToken: '',
+        apiKeyName: 'X-API-Key',
+        apiKeyValue: '',
+        oauthGrantType: 'client_credentials',
+        oauthTokenUrl: '',
+        oauthClientId: '',
+        oauthClientSecret: '',
+        oauthScope: '',
+        oauthUsername: '',
+        oauthPassword: '',
+        oauthAuthorizeUrl: '',
+        oauthAuthCode: '',
+        oauthAccessToken: ''
+      };
+
+      isSwitchingRef.current = true;
+      setMethod(newSession.method);
+      setUrl(newSession.url);
+      setQueryParams(newSession.queryParams);
+      setHeaders(newSession.headers);
+      setBody(newSession.body);
+      setTimeoutSec(newSession.timeoutSec);
+      setResponse(newSession.response);
+      setLoading(newSession.loading);
+      setError(newSession.error);
+      setResponseTime(newSession.responseTime);
+      setActiveTab(newSession.activeTab);
+      setIsMockEnabled(newSession.isMockEnabled);
+      setMockStatus(newSession.mockStatus);
+      setMockResponseBody(newSession.mockResponseBody);
+      setAuthType(newSession.authType);
+      setBasicUser(newSession.basicUser);
+      setBasicPass(newSession.basicPass);
+      setBearerToken(newSession.bearerToken);
+      setApiKeyName(newSession.apiKeyName);
+      setApiKeyValue(newSession.apiKeyValue);
+      setOauthGrantType(newSession.oauthGrantType);
+      setOauthTokenUrl(newSession.oauthTokenUrl);
+      setOauthClientId(newSession.oauthClientId);
+      setOauthClientSecret(newSession.oauthClientSecret);
+      setOauthScope(newSession.oauthScope);
+      setOauthUsername(newSession.oauthUsername);
+      setOauthPassword(newSession.oauthPassword);
+      setOauthAuthorizeUrl(newSession.oauthAuthorizeUrl);
+      setOauthAuthCode(newSession.oauthAuthCode);
+      setOauthAccessToken(newSession.oauthAccessToken);
+
+      setActiveSessionId(newId);
+      
+      setTimeout(() => {
+        isSwitchingRef.current = false;
+      }, 0);
+
+      return [...nextSessions, newSession];
+    });
+  };
+
+  const closeSession = (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (sessions.length <= 1) return;
+
+    const index = sessions.findIndex(s => s.id === sessionId);
+    const filtered = sessions.filter(s => s.id !== sessionId);
+    
+    if (activeSessionId === sessionId) {
+      const nextActiveIndex = index === 0 ? 0 : index - 1;
+      const nextActive = filtered[nextActiveIndex];
+      
+      isSwitchingRef.current = true;
+      setMethod(nextActive.method);
+      setUrl(nextActive.url);
+      setQueryParams(nextActive.queryParams || []);
+      setHeaders(nextActive.headers || []);
+      setBody(nextActive.body || '');
+      setTimeoutSec(nextActive.timeoutSec !== undefined ? nextActive.timeoutSec : 30);
+      setResponse(nextActive.response);
+      setLoading(nextActive.loading || false);
+      setError(nextActive.error);
+      setResponseTime(nextActive.responseTime);
+      setActiveTab(nextActive.activeTab || 'headers');
+      setIsMockEnabled(nextActive.isMockEnabled || false);
+      setMockStatus(nextActive.mockStatus || 200);
+      setMockResponseBody(nextActive.mockResponseBody || '');
+      setAuthType(nextActive.authType || 'none');
+      setBasicUser(nextActive.basicUser || '');
+      setBasicPass(nextActive.basicPass || '');
+      setBearerToken(nextActive.bearerToken || '');
+      setApiKeyName(nextActive.apiKeyName || 'X-API-Key');
+      setApiKeyValue(nextActive.apiKeyValue || '');
+      setOauthGrantType(nextActive.oauthGrantType || 'client_credentials');
+      setOauthTokenUrl(nextActive.oauthTokenUrl || '');
+      setOauthClientId(nextActive.oauthClientId || '');
+      setOauthClientSecret(nextActive.oauthClientSecret || '');
+      setOauthScope(nextActive.oauthScope || '');
+      setOauthUsername(nextActive.oauthUsername || '');
+      setOauthPassword(nextActive.oauthPassword || '');
+      setOauthAuthorizeUrl(nextActive.oauthAuthorizeUrl || '');
+      setOauthAuthCode(nextActive.oauthAuthCode || '');
+      setOauthAccessToken(nextActive.oauthAccessToken || '');
+
+      setActiveSessionId(nextActive.id);
+      
+      setTimeout(() => {
+        isSwitchingRef.current = false;
+      }, 0);
+    }
+    
+    setSessions(filtered);
+  };
+
+  const duplicateSession = (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const sessionToDuplicate = sessions.find(s => s.id === sessionId);
+    if (!sessionToDuplicate) return;
+
+    setSessions(prev => {
+      const nextSessions = prev.map(s => {
+        if (s.id === activeSessionId) {
+          return {
+            ...s,
+            method,
+            url,
+            queryParams,
+            headers,
+            body,
+            timeoutSec,
+            response,
+            loading,
+            error,
+            responseTime,
+            activeTab,
+            isMockEnabled,
+            mockStatus,
+            mockResponseBody,
+            authType,
+            basicUser,
+            basicPass,
+            bearerToken,
+            apiKeyName,
+            apiKeyValue,
+            oauthGrantType,
+            oauthTokenUrl,
+            oauthClientId,
+            oauthClientSecret,
+            oauthScope,
+            oauthUsername,
+            oauthPassword,
+            oauthAuthorizeUrl,
+            oauthAuthCode,
+            oauthAccessToken
+          };
+        }
+        return s;
+      });
+
+      const newId = 'session_' + Date.now();
+      const newSession: ApiSession = {
+        ...sessionToDuplicate,
+        id: newId,
+        name: `${sessionToDuplicate.name} (Copy)`
+      };
+
+      isSwitchingRef.current = true;
+      setMethod(newSession.method);
+      setUrl(newSession.url);
+      setQueryParams(newSession.queryParams || []);
+      setHeaders(newSession.headers || []);
+      setBody(newSession.body || '');
+      setTimeoutSec(newSession.timeoutSec !== undefined ? newSession.timeoutSec : 30);
+      setResponse(newSession.response);
+      setLoading(newSession.loading || false);
+      setError(newSession.error);
+      setResponseTime(newSession.responseTime);
+      setActiveTab(newSession.activeTab || 'headers');
+      setIsMockEnabled(newSession.isMockEnabled || false);
+      setMockStatus(newSession.mockStatus || 200);
+      setMockResponseBody(newSession.mockResponseBody || '');
+      setAuthType(newSession.authType || 'none');
+      setBasicUser(newSession.basicUser || '');
+      setBasicPass(newSession.basicPass || '');
+      setBearerToken(newSession.bearerToken || '');
+      setApiKeyName(newSession.apiKeyName || 'X-API-Key');
+      setApiKeyValue(newSession.apiKeyValue || '');
+      setOauthGrantType(newSession.oauthGrantType || 'client_credentials');
+      setOauthTokenUrl(newSession.oauthTokenUrl || '');
+      setOauthClientId(newSession.oauthClientId || '');
+      setOauthClientSecret(newSession.oauthClientSecret || '');
+      setOauthScope(newSession.oauthScope || '');
+      setOauthUsername(newSession.oauthUsername || '');
+      setOauthPassword(newSession.oauthPassword || '');
+      setOauthAuthorizeUrl(newSession.oauthAuthorizeUrl || '');
+      setOauthAuthCode(newSession.oauthAuthCode || '');
+      setOauthAccessToken(newSession.oauthAccessToken || '');
+
+      setActiveSessionId(newId);
+      
+      setTimeout(() => {
+        isSwitchingRef.current = false;
+      }, 0);
+
+      return [...nextSessions, newSession];
+    });
+  };
+
+  const startRenameSession = (id: string, name: string) => {
+    setEditingSessionId(id);
+    setEditingSessionName(name);
+  };
+
+  const saveRenameSession = (id: string) => {
+    if (editingSessionName.trim()) {
+      setSessions(prev => prev.map(s => s.id === id ? { ...s, name: editingSessionName.trim() } : s));
+    }
+    setEditingSessionId(null);
+  };
 
   const addHeader = () => {
     setHeaders([...headers, { key: '', value: '', enabled: true }]);
@@ -654,7 +1814,17 @@ export default function RestApiManager() {
             responseTime: duration,
             responseSize: responseSizeKB,
             statusCode: mockStatus,
-            statusText: statusText
+            statusText: statusText,
+            oauthGrantType,
+            oauthTokenUrl,
+            oauthClientId,
+            oauthClientSecret,
+            oauthScope,
+            oauthUsername,
+            oauthPassword,
+            oauthAuthorizeUrl,
+            oauthAuthCode,
+            oauthAccessToken
           },
           ...prev.filter(h => h.url !== url || h.method !== `${method} (MOCK)`).slice(0, 19)
         ]);
@@ -689,6 +1859,9 @@ export default function RestApiManager() {
         activeHeaders['Authorization'] = `Basic ${credentials}`;
       } else if (authType === 'bearer' && bearerToken) {
         const resolvedToken = resolveStr(bearerToken);
+        activeHeaders['Authorization'] = `Bearer ${resolvedToken}`;
+      } else if (authType === 'oauth2' && oauthAccessToken) {
+        const resolvedToken = resolveStr(oauthAccessToken);
         activeHeaders['Authorization'] = `Bearer ${resolvedToken}`;
       } else if (authType === 'apikey' && apiKeyName && apiKeyValue) {
         const resolvedKeyName = resolveStr(apiKeyName);
@@ -748,7 +1921,17 @@ export default function RestApiManager() {
           responseTime: duration,
           responseSize: responseSizeKB,
           statusCode: res.status,
-          statusText: res.statusText
+          statusText: res.statusText,
+          oauthGrantType,
+          oauthTokenUrl,
+          oauthClientId,
+          oauthClientSecret,
+          oauthScope,
+          oauthUsername,
+          oauthPassword,
+          oauthAuthorizeUrl,
+          oauthAuthCode,
+          oauthAccessToken
         },
         ...prev.filter(h => h.url !== url || h.method !== method).slice(0, 19)
       ]);
@@ -779,7 +1962,17 @@ export default function RestApiManager() {
           responseSize: 0,
           statusCode: 0,
           statusText: 'Failed',
-          error: err instanceof Error ? err.message : 'Failed to send request'
+          error: err instanceof Error ? err.message : 'Failed to send request',
+          oauthGrantType,
+          oauthTokenUrl,
+          oauthClientId,
+          oauthClientSecret,
+          oauthScope,
+          oauthUsername,
+          oauthPassword,
+          oauthAuthorizeUrl,
+          oauthAuthCode,
+          oauthAccessToken
         },
         ...prev.filter(h => h.url !== url || h.method !== method).slice(0, 19)
       ]);
@@ -996,11 +2189,119 @@ export default function RestApiManager() {
             )}
           </button>
 
+          <button 
+            onClick={() => setShowSnippetsModal(true)}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-md bg-neutral-800 hover:bg-neutral-700 text-text-secondary text-xs transition-colors border border-border-subtle cursor-pointer"
+            title="Open Saved Snippets Library"
+          >
+            <BookOpen size={12} className="text-pink-400" />
+            <span>Snippets Library</span>
+            {snippets.length > 0 && (
+              <span className="px-1.5 py-0.5 rounded-full bg-pink-500/20 text-[9px] text-pink-400 font-bold">
+                {snippets.length}
+              </span>
+            )}
+          </button>
+
           <CopyButton text={getCurlCommand} />
         </div>
       }
     >
       <div className="flex flex-col gap-6 h-full">
+        {/* API Sessions Tab Bar */}
+        <div className="flex items-center justify-between border-b border-border-main pb-2 gap-4">
+          <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar flex-1 pr-2 pb-1">
+            {sessions.map((sess) => {
+              const isActive = sess.id === activeSessionId;
+              const isEditing = sess.id === editingSessionId;
+              
+              return (
+                <div
+                  key={sess.id}
+                  onClick={() => !isActive && switchSession(sess.id)}
+                  onDoubleClick={() => startRenameSession(sess.id, sess.name)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold cursor-pointer select-none max-w-[200px] shrink-0 transition-all duration-150 group ${
+                    isActive
+                      ? 'bg-neutral-900 border-border-main text-white shadow-sm ring-1 ring-brand/20'
+                      : 'bg-transparent border-transparent text-text-secondary hover:text-white hover:bg-neutral-900/40'
+                  }`}
+                  title="Double-click to rename"
+                >
+                  <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded font-mono shrink-0 ${
+                    sess.method === 'GET' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/10' :
+                    sess.method === 'POST' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/10' :
+                    sess.method === 'PUT' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/10' :
+                    sess.method === 'DELETE' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/10' :
+                    'bg-purple-500/10 text-purple-400 border border-purple-500/10'
+                  }`}>
+                    {sess.method}
+                  </span>
+
+                  {isEditing ? (
+                    <input
+                      type="text"
+                      value={editingSessionName}
+                      onChange={(e) => setEditingSessionName(e.target.value)}
+                      onBlur={() => saveRenameSession(sess.id)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveRenameSession(sess.id);
+                        if (e.key === 'Escape') setEditingSessionId(null);
+                      }}
+                      autoFocus
+                      onClick={(e) => e.stopPropagation()}
+                      className="bg-neutral-950 border border-brand/50 rounded px-1.5 py-0.5 text-[11px] text-white outline-none w-24 font-semibold"
+                    />
+                  ) : (
+                    <span className="truncate max-w-[100px] text-[11px]">
+                      {sess.name}
+                    </span>
+                  )}
+
+                  <div className="flex items-center gap-1 shrink-0 ml-1">
+                    {/* Duplicate button */}
+                    <button
+                      type="button"
+                      onClick={(e) => duplicateSession(sess.id, e)}
+                      className="p-0.5 rounded hover:bg-neutral-800 text-text-secondary hover:text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Duplicate Session"
+                    >
+                      <Copy size={10} />
+                    </button>
+
+                    {/* Close button (only show if multiple sessions exist) */}
+                    {sessions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={(e) => closeSession(sess.id, e)}
+                        className="p-0.5 rounded hover:bg-red-500/10 text-text-secondary hover:text-red-400 transition-colors"
+                        title="Close Session"
+                      >
+                        <X size={10} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Add Session Button */}
+            <button
+              type="button"
+              onClick={() => createNewSession()}
+              className="p-1.5 rounded-lg border border-dashed border-border-main/60 hover:border-brand/50 text-text-secondary hover:text-brand bg-transparent transition-all cursor-pointer shrink-0 ml-1 flex items-center justify-center"
+              title="Open New Session"
+            >
+              <Plus size={13} />
+            </button>
+          </div>
+          
+          {/* Quick info about active tab count */}
+          <div className="hidden sm:flex items-center gap-1.5 text-[10px] text-text-secondary font-semibold bg-neutral-900 border border-border-main px-2 py-1 rounded-md shrink-0">
+            <Database size={11} className="text-brand" />
+            <span>{sessions.length} {sessions.length === 1 ? 'session' : 'sessions'} active</span>
+          </div>
+        </div>
+
         {/* Request Bar */}
         <div className="flex flex-col md:flex-row gap-2">
           <div className="flex-1 flex flex-col sm:flex-row gap-2">
@@ -1055,6 +2356,15 @@ export default function RestApiManager() {
               <span className="text-[10px] text-text-secondary select-none font-bold uppercase">s</span>
             </div>
           </div>
+          <button
+            onClick={handleOpenSaveSnippetModal}
+            className="flex items-center justify-center gap-2 px-4 py-3 bg-neutral-800 hover:bg-neutral-700 hover:text-pink-400 text-text-secondary rounded-xl font-bold border border-border-subtle transition-all active:scale-95 cursor-pointer"
+            title="Save Current Request as Snippet"
+          >
+            <Bookmark size={18} />
+            <span className="hidden sm:inline text-xs">Save Snippet</span>
+          </button>
+
           <button
             onClick={sendRequest}
             disabled={loading}
@@ -1225,28 +2535,250 @@ export default function RestApiManager() {
                 <div className="flex flex-col gap-6 p-2">
                   <div className="flex flex-col gap-2">
                     <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">Auth Type</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
                       {[
                         { id: 'none', name: 'No Auth', icon: Lock },
                         { id: 'basic', name: 'Basic', icon: User },
                         { id: 'bearer', name: 'Bearer', icon: Key },
-                        { id: 'apikey', name: 'API Key', icon: Settings2 }
+                        { id: 'apikey', name: 'API Key', icon: Settings2 },
+                        { id: 'oauth2', name: 'OAuth 2.0', icon: Shield }
                       ].map(type => (
                         <button
                           key={type.id}
                           onClick={() => setAuthType(type.id as any)}
-                          className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all ${
+                          className={`flex flex-col items-center gap-2 p-3 rounded-xl border transition-all cursor-pointer ${
                             authType === type.id 
                               ? 'bg-brand/10 border-brand text-brand' 
                               : 'bg-bg-header border-border-main text-text-secondary hover:border-border-subtle hover:text-white'
                           }`}
                         >
                           <type.icon size={16} />
-                          <span className="text-[10px] font-bold uppercase">{type.name}</span>
+                          <span className="text-[10px] font-bold uppercase truncate w-full text-center">{type.name}</span>
                         </button>
                       ))}
                     </div>
                   </div>
+
+                  {authType === 'oauth2' && (
+                    <div className="flex flex-col gap-5 animate-in fade-in slide-in-from-top-2">
+                      {/* Grant Type Selector */}
+                      <div className="flex flex-col gap-2">
+                        <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">OAuth Grant Type</label>
+                        <div className="flex flex-wrap gap-2">
+                          {[
+                            { id: 'client_credentials', label: 'Client Credentials' },
+                            { id: 'password', label: 'Password' },
+                            { id: 'authorization_code', label: 'Authorization Code' }
+                          ].map(grant => (
+                            <button
+                              key={grant.id}
+                              onClick={() => setOauthGrantType(grant.id as any)}
+                              className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
+                                oauthGrantType === grant.id
+                                  ? 'bg-brand/15 border-brand/40 text-brand'
+                                  : 'bg-bg-header border-border-main text-text-secondary hover:border-border-subtle hover:text-white'
+                              }`}
+                            >
+                              {grant.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* OAuth Config Inputs Grid */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Token Endpoint URL */}
+                        <div className="flex flex-col gap-1.5 md:col-span-2">
+                          <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">Access Token URL *</label>
+                          <input 
+                            type="text" 
+                            value={oauthTokenUrl}
+                            onChange={(e) => setOauthTokenUrl(e.target.value)}
+                            placeholder="https://oauth.example.com/oauth/token"
+                            className="w-full bg-bg-header border border-border-main rounded-xl px-4 py-2 text-xs font-mono text-white outline-none focus:border-brand transition-colors"
+                          />
+                        </div>
+
+                        {/* Client ID */}
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">Client ID</label>
+                          <input 
+                            type="text" 
+                            value={oauthClientId}
+                            onChange={(e) => setOauthClientId(e.target.value)}
+                            placeholder="your-client-id"
+                            className="w-full bg-bg-header border border-border-main rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-brand transition-colors"
+                          />
+                        </div>
+
+                        {/* Client Secret */}
+                        <div className="flex flex-col gap-1.5">
+                          <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">Client Secret</label>
+                          <input 
+                            type="password" 
+                            value={oauthClientSecret}
+                            onChange={(e) => setOauthClientSecret(e.target.value)}
+                            placeholder="••••••••••••••••••••"
+                            className="w-full bg-bg-header border border-border-main rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-brand transition-colors"
+                          />
+                        </div>
+
+                        {/* Conditional Authorization Fields */}
+                        {oauthGrantType === 'authorization_code' && (
+                          <>
+                            <div className="flex flex-col gap-1.5 md:col-span-2">
+                              <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">Authorization URL *</label>
+                              <input 
+                                type="text" 
+                                value={oauthAuthorizeUrl}
+                                onChange={(e) => setOauthAuthorizeUrl(e.target.value)}
+                                placeholder="https://oauth.example.com/oauth/authorize"
+                                className="w-full bg-bg-header border border-border-main rounded-xl px-4 py-2 text-xs font-mono text-white outline-none focus:border-brand transition-colors"
+                              />
+                            </div>
+                            
+                            <div className="flex flex-col gap-1.5 md:col-span-2">
+                              <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">Step 1: Get Authorization Code</label>
+                              <div className="flex gap-2">
+                                <button
+                                  type="button"
+                                  onClick={handleOAuthAuthorize}
+                                  className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 border border-border-subtle text-white text-xs font-bold rounded-lg transition-all cursor-pointer"
+                                >
+                                  Open Authorization Popup
+                                </button>
+                                <span className="text-[10px] text-text-secondary flex items-center italic font-medium">
+                                  Will open login and intercept the returned callback parameter.
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col gap-1.5 md:col-span-2">
+                              <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">Authorization Code</label>
+                              <input 
+                                type="text" 
+                                value={oauthAuthCode}
+                                onChange={(e) => setOauthAuthCode(e.target.value)}
+                                placeholder="OAuth authorization code (populated automatically or paste here)"
+                                className="w-full bg-bg-header border border-border-main rounded-xl px-4 py-2 text-xs font-mono text-white outline-none focus:border-brand transition-colors"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {/* Password Credentials Fields */}
+                        {oauthGrantType === 'password' && (
+                          <>
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">Username</label>
+                              <input 
+                                type="text" 
+                                value={oauthUsername}
+                                onChange={(e) => setOauthUsername(e.target.value)}
+                                placeholder="Username"
+                                className="w-full bg-bg-header border border-border-main rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-brand transition-colors"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                              <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">Password</label>
+                              <input 
+                                type="password" 
+                                value={oauthPassword}
+                                onChange={(e) => setOauthPassword(e.target.value)}
+                                placeholder="Password"
+                                className="w-full bg-bg-header border border-border-main rounded-xl px-4 py-2 text-xs text-white outline-none focus:border-brand transition-colors"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {/* Scope */}
+                        <div className="flex flex-col gap-1.5 md:col-span-2">
+                          <label className="text-[10px] font-bold text-text-secondary uppercase tracking-widest pl-1">Scope</label>
+                          <input 
+                            type="text" 
+                            value={oauthScope}
+                            onChange={(e) => setOauthScope(e.target.value)}
+                            placeholder="e.g. read, write, openid"
+                            className="w-full bg-bg-header border border-border-main rounded-xl px-4 py-2 text-xs font-mono text-white outline-none focus:border-brand transition-colors"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Generate / Error actions */}
+                      <div className="flex flex-col gap-3 pt-2 border-t border-border-subtle/30">
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={fetchOAuthToken}
+                            disabled={oauthLoading}
+                            className="px-5 py-2.5 bg-brand hover:bg-brand/95 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-2 shadow-lg shadow-brand/10 active:scale-95"
+                          >
+                            {oauthLoading ? (
+                              <>
+                                <RefreshCw size={13} className="animate-spin" />
+                                <span>Generating Token...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Shield size={13} />
+                                <span>Request Access Token</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+
+                        {oauthError && (
+                          <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-xs flex items-start gap-2 animate-in fade-in duration-150">
+                            <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0 mt-1.5" />
+                            <div className="flex-1 font-semibold leading-relaxed">
+                              <strong>Token Exchange Failed:</strong> {oauthError}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Generated Token Panel */}
+                        {oauthAccessToken && (
+                          <div className="p-4 bg-emerald-500/5 border border-emerald-500/10 rounded-xl flex flex-col gap-2.5 animate-in slide-in-from-bottom-2">
+                            <div className="flex items-center justify-between text-[10px] font-bold text-emerald-400 uppercase tracking-wider pl-1 select-none">
+                              <span className="flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block animate-pulse" />
+                                Access Token Retained
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(oauthAccessToken);
+                                    alert('OAuth access token copied to clipboard.');
+                                  }}
+                                  className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 transition-colors border border-emerald-500/20 cursor-pointer"
+                                >
+                                  Copy
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setOauthAccessToken('')}
+                                  className="text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded bg-red-500/10 hover:bg-red-500/20 text-red-400 transition-colors border border-red-500/20 cursor-pointer"
+                                >
+                                  Clear
+                                </button>
+                              </div>
+                            </div>
+                            <textarea
+                              value={oauthAccessToken}
+                              readOnly
+                              rows={2}
+                              className="w-full bg-neutral-950/40 text-xs font-mono text-emerald-400 border border-emerald-500/10 rounded-lg p-2.5 outline-none resize-none select-all"
+                            />
+                            <p className="text-[10px] text-text-secondary font-medium leading-none">
+                              This token will automatically be injected as a Bearer Token in your HTTP request header.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
 
                   {authType === 'basic' && (
                     <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
@@ -1553,6 +3085,18 @@ export default function RestApiManager() {
                          setApiKeyName(item.apiKeyName || 'X-API-Key');
                          setApiKeyValue(item.apiKeyValue || '');
                          setTimeoutSec(item.timeoutSec !== undefined ? item.timeoutSec : 30);
+
+                         if (item.oauthGrantType) setOauthGrantType(item.oauthGrantType);
+                         if (item.oauthTokenUrl) setOauthTokenUrl(item.oauthTokenUrl);
+                         if (item.oauthClientId) setOauthClientId(item.oauthClientId);
+                         if (item.oauthClientSecret) setOauthClientSecret(item.oauthClientSecret);
+                         if (item.oauthScope) setOauthScope(item.oauthScope);
+                         if (item.oauthUsername) setOauthUsername(item.oauthUsername);
+                         if (item.oauthPassword) setOauthPassword(item.oauthPassword);
+                         if (item.oauthAuthorizeUrl) setOauthAuthorizeUrl(item.oauthAuthorizeUrl);
+                         if (item.oauthAuthCode) setOauthAuthCode(item.oauthAuthCode);
+                         if (item.oauthAccessToken) setOauthAccessToken(item.oauthAccessToken);
+
                          // Switch to appropriate tab based on content
                          if (item.body) setActiveTab('body');
                          else if (item.authType && item.authType !== 'none') setActiveTab('auth');
@@ -2413,6 +3957,18 @@ export default function RestApiManager() {
                                     setApiKeyName(log.apiKeyName || 'X-API-Key');
                                     setApiKeyValue(log.apiKeyValue || '');
                                     setTimeoutSec(log.timeoutSec !== undefined ? log.timeoutSec : 30);
+
+                                    if (log.oauthGrantType) setOauthGrantType(log.oauthGrantType);
+                                    if (log.oauthTokenUrl) setOauthTokenUrl(log.oauthTokenUrl);
+                                    if (log.oauthClientId) setOauthClientId(log.oauthClientId);
+                                    if (log.oauthClientSecret) setOauthClientSecret(log.oauthClientSecret);
+                                    if (log.oauthScope) setOauthScope(log.oauthScope);
+                                    if (log.oauthUsername) setOauthUsername(log.oauthUsername);
+                                    if (log.oauthPassword) setOauthPassword(log.oauthPassword);
+                                    if (log.oauthAuthorizeUrl) setOauthAuthorizeUrl(log.oauthAuthorizeUrl);
+                                    if (log.oauthAuthCode) setOauthAuthCode(log.oauthAuthCode);
+                                    if (log.oauthAccessToken) setOauthAccessToken(log.oauthAccessToken);
+
                                     setShowDashboardModal(false);
                                     if (log.body) setActiveTab('body');
                                     else if (log.authType && log.authType !== 'none') setActiveTab('auth');
@@ -2473,6 +4029,330 @@ export default function RestApiManager() {
                 className="px-6 py-2 bg-neutral-800 hover:bg-neutral-700 border border-border-subtle text-white rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
               >
                 Close Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Save Request as Snippet Modal */}
+      {showSaveModal && (
+        <div className="fixed inset-0 z-[115] flex items-center justify-center p-4">
+          <div 
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm"
+            onClick={() => setShowSaveModal(false)}
+          />
+          <div className="relative w-full max-w-md bg-bg-editor border border-border-main rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border-main bg-neutral-900/40 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-pink-500/10 rounded-lg text-pink-400">
+                  <Bookmark size={16} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white text-xs uppercase tracking-wider">Save Request to Library</h3>
+                  <p className="text-[10px] text-text-secondary">Store this configuration for future session reuse.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowSaveModal(false)}
+                className="text-text-secondary hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Form Fields */}
+            <div className="p-5 flex flex-col gap-4">
+              {/* Snapshot preview */}
+              <div className="p-3 bg-neutral-950/40 rounded-xl border border-border-subtle/30 flex items-center gap-2">
+                <span className={`text-[9px] font-black px-1.5 py-0.5 rounded ${
+                  method === 'GET' ? 'bg-blue-500/20 text-blue-400' :
+                  method === 'POST' ? 'bg-green-500/20 text-green-400' :
+                  method === 'PUT' ? 'bg-yellow-500/20 text-yellow-400' :
+                  method === 'DELETE' ? 'bg-red-500/20 text-red-400' :
+                  'bg-purple-500/20 text-purple-400'
+                }`}>
+                  {method}
+                </span>
+                <span className="text-[10px] font-mono text-text-secondary truncate flex-1 select-all">
+                  {url || 'No URL specified'}
+                </span>
+              </div>
+
+              {/* Title */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Snippet Name *</label>
+                <input
+                  type="text"
+                  value={saveSnippetName}
+                  onChange={(e) => setSaveSnippetName(e.target.value)}
+                  placeholder="e.g. Fetch user profiles API"
+                  className="w-full bg-bg-app border border-border-main rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-brand transition-colors"
+                  autoFocus
+                />
+              </div>
+
+              {/* Description */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Description</label>
+                <textarea
+                  value={saveSnippetDescription}
+                  onChange={(e) => setSaveSnippetDescription(e.target.value)}
+                  placeholder="Describe the purpose, query parameters, or required credentials of this request..."
+                  className="w-full h-20 bg-bg-app border border-border-main rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-brand transition-colors resize-none"
+                />
+              </div>
+
+              {/* Tags */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-bold text-text-secondary uppercase tracking-wider">Tags (comma separated)</label>
+                <input
+                  type="text"
+                  value={saveSnippetTags}
+                  onChange={(e) => setSaveSnippetTags(e.target.value)}
+                  placeholder="e.g. Production, User, GET"
+                  className="w-full bg-bg-app border border-border-main rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-brand transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="px-5 py-4 border-t border-border-main flex justify-end gap-2.5 bg-neutral-900/40 shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowSaveModal(false)}
+                className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 text-text-secondary hover:text-white rounded-xl text-xs font-semibold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveSnippet}
+                disabled={!saveSnippetName.trim()}
+                className="px-5 py-2 bg-brand hover:bg-brand/90 disabled:opacity-50 text-white rounded-xl text-xs font-black transition-all cursor-pointer"
+              >
+                Save Snippet
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Snippets Library Management Modal */}
+      {showSnippetsModal && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
+          <div 
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowSnippetsModal(false)}
+          />
+          <div className="relative w-full max-w-5xl h-[85vh] min-h-[500px] bg-bg-editor border border-border-main rounded-2xl shadow-2xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border-main bg-neutral-900/40 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-pink-500/10 rounded-lg text-pink-400">
+                  <BookOpen size={18} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-white uppercase tracking-wider text-sm">Saved Snippets Library</h3>
+                  <p className="text-[10px] text-text-secondary font-semibold">Instantly load, organize, and import/export common HTTP request templates.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowSnippetsModal(false)}
+                className="text-text-secondary hover:text-white transition-colors cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Filter Controls Bar */}
+            <div className="px-6 py-3 border-b border-border-main bg-neutral-950/20 flex flex-col sm:flex-row gap-3 items-center justify-between shrink-0">
+              <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                <span className="text-[10px] text-text-secondary font-bold uppercase tracking-wider mr-1 hidden md:inline">Method:</span>
+                {['ALL', 'GET', 'POST', 'PUT', 'DELETE', 'PATCH'].map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setSnippetsMethodFilter(m)}
+                    className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all cursor-pointer ${
+                      snippetsMethodFilter === m 
+                        ? 'bg-pink-500/20 text-pink-400 border border-pink-500/30 shadow-sm'
+                        : 'bg-neutral-900/50 hover:bg-neutral-800 text-text-secondary border border-border-subtle/40'
+                    }`}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+                <div className="relative w-full sm:w-56">
+                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">
+                    <Search size={12} />
+                  </div>
+                  <input
+                    type="text"
+                    value={snippetsSearch}
+                    onChange={(e) => setSnippetsSearch(e.target.value)}
+                    placeholder="Search templates, tags, urls..."
+                    className="w-full bg-neutral-900 border border-border-subtle rounded-lg pl-8 pr-3 py-1.5 text-xs text-white outline-none focus:border-pink-500/50 transition-colors"
+                  />
+                  {snippetsSearch && (
+                    <button 
+                      onClick={() => setSnippetsSearch('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-text-secondary hover:text-white text-[10px]"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* Import / Export File Utilities */}
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    onClick={exportSnippets}
+                    className="px-2 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-border-subtle/40 text-text-secondary hover:text-white text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
+                    title="Export templates as JSON file"
+                  >
+                    Export
+                  </button>
+                  <label
+                    className="px-2 py-1.5 rounded-lg bg-neutral-900 hover:bg-neutral-800 border border-border-subtle/40 text-text-secondary hover:text-white text-[10px] font-bold transition-all cursor-pointer flex items-center gap-1"
+                    title="Import templates from JSON file"
+                  >
+                    <span>Import</span>
+                    <input
+                      type="file"
+                      accept=".json"
+                      onChange={importSnippets}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* Scrollable Grid Layout */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 bg-neutral-950/10">
+              {filteredSnippets.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-text-secondary gap-3 p-12 text-center select-none my-auto">
+                  <div className="w-14 h-14 rounded-full bg-neutral-900/50 flex items-center justify-center border border-border-subtle animate-pulse">
+                    <BookOpen size={24} className="text-neutral-600" />
+                  </div>
+                  <h4 className="text-xs font-bold text-white uppercase tracking-wider">No Request Snippets Found</h4>
+                  <p className="text-xs max-w-sm leading-relaxed">
+                    {snippetsSearch || snippetsMethodFilter !== 'ALL'
+                      ? "No template matches the current filters. Clear your parameters or method filters and try again."
+                      : "You haven't saved any request templates yet. Save one from the address bar to populate your offline-first snippets library!"}
+                  </p>
+                  {(snippetsSearch || snippetsMethodFilter !== 'ALL') && (
+                    <button
+                      onClick={() => {
+                        setSnippetsSearch('');
+                        setSnippetsMethodFilter('ALL');
+                      }}
+                      className="mt-2 px-3 py-1.5 bg-neutral-800 hover:bg-neutral-700 text-white text-[10px] font-bold rounded-lg transition-all cursor-pointer"
+                    >
+                      Reset All Filters
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {filteredSnippets.map((snip) => {
+                    const isGet = snip.method === 'GET';
+                    const isPost = snip.method === 'POST';
+                    const isPut = snip.method === 'PUT';
+                    const isDelete = snip.method === 'DELETE';
+                    return (
+                      <div 
+                        key={snip.id}
+                        className="group p-4 bg-bg-app border border-border-main hover:border-pink-500/40 rounded-xl flex flex-col gap-3 justify-between transition-all shadow-sm relative overflow-hidden"
+                      >
+                        {/* Status / Meta Header */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex flex-col gap-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded shrink-0 ${
+                                isGet ? 'bg-blue-500/20 text-blue-400' :
+                                isPost ? 'bg-green-500/20 text-green-400' :
+                                isPut ? 'bg-yellow-500/20 text-yellow-400' :
+                                isDelete ? 'bg-red-500/20 text-red-400' :
+                                'bg-purple-500/20 text-purple-400'
+                              }`}>
+                                {snip.method}
+                              </span>
+                              <h4 className="text-xs font-bold text-white truncate group-hover:text-pink-400 transition-colors" title={snip.name}>
+                                {snip.name}
+                              </h4>
+                              {snip.isPreset && (
+                                <span className="text-[8px] font-bold px-1 py-0.2 bg-neutral-800/80 text-neutral-400 rounded-md border border-border-subtle/30 scale-95 uppercase tracking-wide">
+                                  Preset
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-text-secondary line-clamp-2 leading-relaxed font-medium">
+                              {snip.description || 'No description provided.'}
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Monospace Code Endpoint */}
+                        <div className="bg-neutral-950/50 p-2 rounded-lg border border-border-subtle/30 select-all font-mono text-[10px] text-neutral-300 break-all leading-tight">
+                          {snip.url}
+                        </div>
+
+                        {/* Badges & Actions Footer */}
+                        <div className="flex items-center justify-between gap-3 border-t border-border-subtle/40 pt-2.5 mt-1 select-none">
+                          <div className="flex flex-wrap gap-1 max-w-[60%]">
+                            {snip.tags && snip.tags.length > 0 ? (
+                              snip.tags.map(t => (
+                                <span key={t} className="px-1.5 py-0.5 rounded bg-neutral-900 text-[8px] text-text-secondary font-semibold font-mono border border-border-subtle/20">
+                                  #{t}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[8px] text-neutral-500 italic">No tags</span>
+                            )}
+                          </div>
+
+                          {/* Quick Interactive load & actions */}
+                          <div className="flex items-center gap-1.5">
+                            {!snip.isPreset && (
+                              <button
+                                onClick={() => deleteSnippet(snip.id)}
+                                className="p-1 hover:text-red-400 text-text-secondary rounded-lg transition-colors cursor-pointer"
+                                title="Delete saved request template"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                            <button
+                              onClick={() => loadSnippet(snip)}
+                              className="px-2.5 py-1 bg-pink-500/15 hover:bg-pink-500/25 text-pink-400 hover:text-pink-300 text-[10px] font-black rounded-lg border border-pink-500/25 transition-all cursor-pointer uppercase tracking-wider"
+                              title="Load current request settings into REST API workspace"
+                            >
+                              Load Request
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-border-main flex justify-between items-center bg-neutral-900/40 shrink-0">
+              <div className="text-[10px] text-text-secondary font-semibold select-none hidden sm:block">
+                Loaded templates configure the workspace parameters (Headers, Body, Auth, and URL).
+              </div>
+              <button
+                onClick={() => setShowSnippetsModal(false)}
+                className="px-6 py-2 bg-neutral-800 hover:bg-neutral-700 border border-border-subtle text-white rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95"
+              >
+                Close Library
               </button>
             </div>
           </div>
